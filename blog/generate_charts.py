@@ -7,6 +7,7 @@ the bilingual article under ``blog/images``.
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -14,6 +15,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 from scipy.stats import norm
+
+from credit_copula.model import exact_two_name_metrics
 
 
 BLOG_DIR = Path(__file__).resolve().parent
@@ -33,6 +36,7 @@ SCALING_SEED = 42
 CHUNK_SIZE = 20_000
 VAR_LEVEL = 99
 FIGURE_DPI = 240
+CONVERGENCE_SAMPLE_SIZES = np.array([10_000, 100_000, 1_000_000])
 
 
 def marginal_loss_moments() -> tuple[np.ndarray, float, float]:
@@ -141,7 +145,75 @@ def summarize_two_bond_results(
     return results
 
 
-def simulate_scaling_results(mean_loss: float, standard_deviation: float) -> pd.DataFrame:
+def save_exact_two_bond_benchmark() -> pd.DataFrame:
+    """Integrate and save the exact two-name Gaussian-copula benchmark.
+
+    Returns
+    -------
+    pandas.DataFrame
+        One-row table containing exact loss, quantile, and default metrics.
+    """
+    metrics = exact_two_name_metrics(
+        probabilities=PROBABILITIES,
+        state_values=STATE_VALUES,
+        initial_value=INITIAL_BOND_VALUE,
+        latent_correlation=LATENT_CORRELATION,
+    )
+    benchmark = pd.DataFrame([asdict(metrics)])
+    benchmark.to_csv(
+        DATA_DIR / "exact_two_bond_benchmark.csv",
+        index=False,
+        float_format="%.10f",
+    )
+    return benchmark
+
+
+def save_copula_convergence_check(
+    copula_portfolio: np.ndarray,
+    copula_names: np.ndarray,
+) -> pd.DataFrame:
+    """Save prefix-sample diagnostics for the rare-event Monte Carlo estimates.
+
+    Parameters
+    ----------
+    copula_portfolio : numpy.ndarray
+        Shape ``(TWO_BOND_SIMULATIONS,)``; discrete portfolio loss in dollars.
+    copula_names : numpy.ndarray
+        Shape ``(TWO_BOND_SIMULATIONS, 2)``; rating-state name losses.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Sample size, mean, standard deviation, tail quantiles, and name-loss
+        correlation for nested simulation prefixes.
+    """
+    rows: list[dict[str, float | int]] = []
+    for sample_size in CONVERGENCE_SAMPLE_SIZES:
+        portfolio_prefix = copula_portfolio[:sample_size]
+        name_prefix = copula_names[:sample_size]
+        rows.append(
+            {
+                "simulations": int(sample_size),
+                "mean_loss_dollars": float(np.mean(portfolio_prefix)),
+                "standard_deviation_dollars": float(np.std(portfolio_prefix)),
+                "var_99_dollars": float(np.percentile(portfolio_prefix, 99)),
+                "var_99_9_dollars": float(np.percentile(portfolio_prefix, 99.9)),
+                "pearson_loss_correlation": float(np.corrcoef(name_prefix.T)[0, 1]),
+            }
+        )
+
+    convergence = pd.DataFrame(rows)
+    convergence.to_csv(
+        DATA_DIR / "copula_convergence.csv",
+        index=False,
+        float_format="%.8f",
+    )
+    return convergence
+
+
+def simulate_scaling_results(
+    mean_loss: float, standard_deviation: float
+) -> pd.DataFrame:
     """Estimate 99% portfolio VaR for homogeneous portfolios of several sizes.
 
     Parameters
@@ -164,26 +236,17 @@ def simulate_scaling_results(mean_loss: float, standard_deviation: float) -> pd.
     """
     state_losses, _, _ = marginal_loss_moments()
     cumulative_probabilities = np.cumsum(PROBABILITIES)
-    rng = np.random.default_rng(SCALING_SEED)
     rows: list[dict[str, float | int]] = []
 
     for n_bonds in BOND_COUNTS:
-        gaussian_losses = np.empty(SCALING_SIMULATIONS)
         copula_losses = np.empty(SCALING_SIMULATIONS)
+        # A size-specific stream makes each estimate reproducible even if the
+        # BOND_COUNTS grid is reordered or expanded later.
+        rng = np.random.default_rng(SCALING_SEED + int(n_bonds))
 
         for start in range(0, SCALING_SIMULATIONS, CHUNK_SIZE):
             stop = min(start + CHUNK_SIZE, SCALING_SIMULATIONS)
             n_rows = stop - start
-
-            common = rng.standard_normal((n_rows, 1))
-            idiosyncratic = rng.standard_normal((n_rows, int(n_bonds)))
-            latent = (
-                np.sqrt(LATENT_CORRELATION) * common
-                + np.sqrt(1.0 - LATENT_CORRELATION) * idiosyncratic
-            )
-            gaussian_losses[start:stop] = (
-                mean_loss + standard_deviation * latent
-            ).sum(axis=1)
 
             common = rng.standard_normal((n_rows, 1))
             idiosyncratic = rng.standard_normal((n_rows, int(n_bonds)))
@@ -198,7 +261,17 @@ def simulate_scaling_results(mean_loss: float, standard_deviation: float) -> pd.
             )
             copula_losses[start:stop] = state_losses[rating_indices].sum(axis=1)
 
-        gaussian_var = float(np.percentile(gaussian_losses, VAR_LEVEL))
+        # The matched-loss model is Gaussian, so its portfolio quantile is
+        # analytic. This removes needless Monte Carlo noise from its curve.
+        portfolio_variance_multiplier = n_bonds + LATENT_CORRELATION * n_bonds * (
+            n_bonds - 1
+        )
+        gaussian_var = float(
+            n_bonds * mean_loss
+            + norm.ppf(VAR_LEVEL / 100)
+            * standard_deviation
+            * np.sqrt(portfolio_variance_multiplier)
+        )
         copula_var = float(np.percentile(copula_losses, VAR_LEVEL))
         rows.append(
             {
@@ -314,7 +387,7 @@ def plot_portfolio_scaling(results: pd.DataFrame) -> None:
     axes[0].set_title("Absolute 99% VaR grows with portfolio size")
     axes[0].set_xlabel("Number of BBB bonds")
     axes[0].set_ylabel("99% Value-at-Risk (dollars)")
-    axes[1].set_title("Diversification lowers VaR per bond")
+    axes[1].set_title("Per-bond VaR falls unevenly under discrete losses")
     axes[1].set_xlabel("Number of BBB bonds")
     axes[1].set_ylabel("99% Value-at-Risk per bond (dollars)")
 
@@ -350,6 +423,8 @@ def main() -> None:
         gaussian_names,
         copula_names,
     )
+    save_exact_two_bond_benchmark()
+    save_copula_convergence_check(copula_portfolio, copula_names)
     scaling_results = simulate_scaling_results(mean_loss, standard_deviation)
     plot_loss_tail(gaussian_portfolio, copula_portfolio)
     plot_portfolio_scaling(scaling_results)

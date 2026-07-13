@@ -1,0 +1,2 @@
+mean_loss_dollars,standard_deviation_dollars,var_95_dollars,var_99_dollars,var_99_9_dollars,pearson_loss_correlation,joint_default_probability,conditional_default_probability,default_indicator_correlation,default_threshold
+0.9241640000,4.6375484916,5.5300000000,14.9800000000,61.9500000000,0.2013969050,0.0001215758,0.0675421347,0.0658606839,2.9112377262

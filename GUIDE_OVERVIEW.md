@@ -26,8 +26,17 @@ credit-copula/
 │       ├── __init__.py
 │       ├── cli.py
 │       ├── config.py
+│       ├── model.py
 │       ├── pipeline.py
 │       └── steps/
+├── tests/
+│   └── test_model.py
+├── blog/
+│   ├── data/
+│   ├── images/
+│   ├── generate_charts.py
+│   ├── index.md
+│   └── index.fr.md
 ├── data/
 │   └── processed/
 └── outputs/
@@ -37,7 +46,7 @@ credit-copula/
 
 ## Purpose
 
-Splits the original credit copula notebook into sequential Python step scripts while preserving the original simulation logic and figures.
+Compares continuous matched-moment losses with discrete rating-migration losses under Gaussian dependence. The original notebook workflow remains executable, while exact two-name integration verifies the threshold map, attainable loss quantiles, and the difference between latent asset correlation and realized default or loss correlation.
 
 ## Flow
 
@@ -45,9 +54,14 @@ Splits the original credit copula notebook into sequential Python step scripts w
 2. The pipeline builds a shared execution context with project paths and optional smoke-test overrides.
 3. The step scripts in `src/credit_copula/steps/` execute in notebook order.
 4. Outputs are written under `outputs/`, while `docs/reference/` holds the original notebook, the notebook copy-out, and the split map.
+5. The analytic model integrates each two-name rating-state cell from a conditional normal distribution, producing a deterministic benchmark for Monte Carlo tests and blog evidence.
+6. The project-local blog script freezes exact, simulated, convergence, and portfolio-scaling tables before regenerating its analytical figures.
 
 ## Main Assumptions
 
 - The generated step scripts should stay close to the notebook code instead of being deeply refactored.
 - Notebook state is preserved through one shared execution context.
+- The `0.5` input is latent Gaussian asset correlation. Thresholding converts it into smaller, nonlinear default and dollar-loss correlations.
+- Default is the final rating state and therefore occupies the upper latent tail. A global sign reversal produces the equivalent lower-tail convention.
+- Portfolio scaling assumes homogeneous BBB names, one common factor, constant pairwise latent correlation, deterministic rating-state values, and a one-year horizon.
 - Any data bundled in `data/processed/` is local to this project copy and does not mutate the original `one-time-projects` files.

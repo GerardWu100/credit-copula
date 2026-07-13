@@ -19,8 +19,10 @@
 3. **Two meanings of “Gaussian”**
    - Method A: Gaussian approximation in loss space.
    - Method B: Gaussian copula in latent space with discrete inverse-transform sampling.
+   - One-factor representation, threshold sign convention, and conditional default probability.
 4. **Same centre, different tail**
    - Deterministic Monte Carlo evidence for two bonds.
+   - Exact 64-cell integration and nested-prefix convergence check.
    - Explain the zero median, skewness, bounded state support, and quantile jumps.
 5. **Dependence does not survive the threshold map unchanged**
    - Contrast the input latent correlation with empirical Pearson and Spearman correlations of realized losses.
@@ -34,10 +36,13 @@
 1. State loss: $\ell_k = V_0 - V_k$, where $V_0$ is the initial BBB value and $V_k$ is the value in rating state $k$.
 2. Exact marginal moments: $\mu = \sum_k p_k\ell_k$ and $\sigma^2 = \sum_k p_k(\ell_k-\mu)^2$, where $p_k$ is the probability of state $k$.
 3. Equicorrelation matrix: $R_{ij}=1$ for $i=j$ and $R_{ij}=\rho$ otherwise; correlated latent variables satisfy $Z=L\varepsilon$ and $LL^\mathsf{T}=R$.
-4. Gaussian approximation: $\widetilde{\ell}_i=\mu+\sigma Z_i$.
-5. Copula map: $U_i=\Phi(Z_i)$ and $K_i=\min\{k:U_i\le C_k\}$, where $C_k=\sum_{j\le k}p_j$.
-6. Portfolio loss: $L_N=\sum_{i=1}^N\ell_{K_i}$.
-7. Quantile definition: $\operatorname{VaR}_q(L_N)=\inf\{x:\Pr(L_N\le x)\ge q\}$.
+4. One-factor representation: $Z_i=\sqrt{\rho}M+\sqrt{1-\rho}\varepsilon_i$.
+5. Gaussian approximation: $\widetilde{\ell}_i=\mu+\sigma Z_i$.
+6. Copula map: $U_i=\Phi(Z_i)$ and $K_i=\min\{k:U_i\le C_k\}$, where $C_k=\sum_{j\le k}p_j$.
+7. Default threshold and conditional default probability for $D_i=\mathbf{1}\{Z_i>a\}$.
+8. Portfolio loss: $L_N=\sum_{i=1}^N\ell_{K_i}$.
+9. Matched Gaussian portfolio variance: $\sigma^2[N+\rho N(N-1)]$.
+10. Quantile definition: $\operatorname{VaR}_q(L_N)=\inf\{x:\Pr(L_N\le x)\ge q\}$.
 
 ## Planned code excerpts
 
@@ -55,6 +60,8 @@
 - Use the repository's transition probabilities and state values without external calibration claims.
 - Freeze blog-specific results from deterministic simulation seeds under `blog/data/`.
 - Report Monte Carlo estimates as estimates, not exact population values.
+- Integrate the two-name copula exactly to benchmark Monte Carlo loss and dependence estimates.
+- Use the closed-form matched Gaussian quantile in the portfolio-size chart instead of simulating a known normal distribution.
 - Do not interpret $\rho=0.5$ as a 0.5 correlation between realized discrete losses; the threshold map changes Pearson and rank correlation.
 - Avoid calling the Gaussian copula generally “fat-tailed.” The heavy portfolio-loss tail here comes from the discrete and strongly skewed marginal loss states; the Gaussian copula itself has no asymptotic tail dependence.
 
