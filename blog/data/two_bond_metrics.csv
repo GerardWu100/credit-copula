@@ -1,0 +1,3 @@
+method,mean_loss_dollars,median_loss_dollars,standard_deviation_dollars,skewness,excess_kurtosis,var_95_dollars,var_99_dollars,var_99_9_dollars,pearson_loss_correlation,spearman_loss_correlation
+Matched Gaussian loss,0.92312746,0.93229565,5.18421518,-0.00224695,-0.00011785,9.44157928,12.97355039,16.88407650,0.50016977,0.48276100
+Gaussian copula,0.92259515,0.00000000,4.63477649,9.88185881,137.94012960,5.53000000,14.98000000,61.95000000,0.20439270,0.27353427
