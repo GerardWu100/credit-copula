@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>credit-copula - code explanation</title>
+<script>
+  window.MathJax = { tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<script type="module">
+  // the map diagram at the top of the page; theme follows the page palette
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  const isLight = document.documentElement.getAttribute("data-theme") === "light";
+  mermaid.initialize({ startOnLoad: true, theme: isLight ? "neutral" : "dark",
+                       flowchart: { curve: "basis", useMaxWidth: true } });
+</script>
+<style>
+  :root{
+    /* dark is the default palette; a light override follows below */
+    --paper:#12161b; --bg:#12161b; --panel:#1b2027; --card:#1a1f26; --surface:#1a1f26; --raise:#1e242c;
+    --ink:#e9eef4; --soft:#b3bec9; --muted:#b3bec9; --faint:#828d99;
+    --line:#2c343e; --line2:#232a33;
+    --green:#6fc796; --greenbg:#14241c; --greenline:#2f4d3a;
+    --amber:#e0b365; --amberbg:#262010; --amberline:#4d3f20;
+    --blue:#87b8ee; --bluebg:#141e2b; --blueline:#2d425c;
+    --red:#e89296; --redbg:#26161a; --redline:#4f2f35;
+    --slate:#a7b1be; --slatebg:#1c2027; --slateline:#353c46;
+    --accent:#4fb9c2; --accent-ink:#6fd0d8; --accent-bg:#10262a;
+    --def:#87b8ee; --def-bg:#141e2b; --def-bd:#2d425c;
+    --why:#6fc796; --why-bg:#14241c; --why-bd:#2f4d3a;
+    --warn:#e0b365; --warn-bg:#262010; --warn-bd:#4d3f20;
+    --flag:#e89296; --flag-bg:#26161a; --flag-bd:#4f2f35;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  }
+  :root[data-theme="light"]{
+    --paper:#faf8f4; --bg:#faf8f4; --panel:#f1ede6; --card:#ffffff; --surface:#ffffff; --raise:#fbfaf7;
+    --ink:#1b1b1b; --soft:#4a453e; --muted:#4a453e; --faint:#777067;
+    --line:#d6d0c6; --line2:#e7e2da;
+    --green:#2f6b4c; --greenbg:#e7f1ea; --greenline:#bcdac9;
+    --amber:#8f6413; --amberbg:#f6efdd; --amberline:#e3d3a8;
+    --blue:#2c5f95; --bluebg:#e7eef7; --blueline:#c3d6ea;
+    --red:#943232; --redbg:#f6eaea; --redline:#e2c4c4;
+    --slate:#525a66; --slatebg:#eceef1; --slateline:#cdd2d9;
+    --accent:#0e7c86; --accent-ink:#0b5f67; --accent-bg:#e7f4f4;
+    --def:#2c5f95; --def-bg:#e7eef7; --def-bd:#c3d6ea;
+    --why:#2f6b4c; --why-bg:#e7f1ea; --why-bd:#bcdac9;
+    --warn:#8f6413; --warn-bg:#f6efdd; --warn-bd:#e3d3a8;
+    --flag:#943232; --flag-bg:#f6eaea; --flag-bd:#e2c4c4;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth;font-size:16px}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    font-size:18px;line-height:1.58;-webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility}
+  .wrap{padding:2.2em clamp(1em,4vw,3.2em) 5em}
+
+  h1{font-size:clamp(2.1rem,5vw,2.7rem);line-height:1.12;letter-spacing:-.02em;font-weight:800;
+    text-wrap:balance;margin:.2em 0 .2em}
+  h2{font-size:1.5rem;font-weight:750;letter-spacing:-.01em;text-wrap:balance;
+    margin:2.4em 0 .5em;padding-top:.7em;border-top:2px solid var(--line)}
+  h3{font-size:1.26rem;font-weight:700;margin:1.7em 0 .4em;color:var(--ink)}
+  h3 code{font-size:.92em}
+  h4{font-size:1rem;margin:1.3em 0 .3em;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
+  p{margin:.7em 0}
+  ul,ol{margin:.55em 0;padding-left:1.3em}
+  li{margin:.3em 0}
+  strong,b{color:var(--ink)}
+  a{color:var(--accent-ink);text-underline-offset:2px}
+  a:hover{color:var(--accent)}
+  hr{border:none;border-top:1px solid var(--line);margin:2.5em 0}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  code{font-family:var(--mono);font-size:.9em;background:var(--panel);color:var(--ink);
+    padding:.1em .4em;border-radius:4px}
+  pre{background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:1em 1.15em;
+    overflow-x:auto;font-size:.94rem;line-height:1.62;margin:1.1em 0;color:var(--ink);
+    font-family:var(--mono)}
+  pre code{background:none;padding:0;font-size:1em}
+  pre .c{color:var(--faint);font-style:italic}
+
+  .lede{font-size:1.12rem;line-height:1.48;color:var(--soft)}
+  .eyebrow{font-family:var(--mono);font-size:.78rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent-ink);margin:0 0 1.1em;display:flex;gap:.6em;align-items:center;flex-wrap:wrap}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  .sec-no{font-family:var(--mono);font-size:.85rem;color:var(--accent-ink);
+    letter-spacing:.1em;display:block;margin-bottom:.15em}
+  .tag{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;
+    background:var(--greenbg);color:var(--green);border:1px solid var(--greenline);
+    padding:.25em .75em;border-radius:20px;margin-bottom:1em}
+  .big{font-size:1.42rem;font-weight:700;color:var(--green)}
+  .pill{font-variant-numeric:tabular-nums;font-weight:600}
+  .fnote{font-size:.95rem;color:var(--soft)}
+  .reads{margin:.55em 0}
+  .reads b{color:var(--soft)}
+  .foot{margin-top:3em;padding-top:1.2em;border-top:1px solid var(--line);
+    color:var(--soft);font-size:.95rem}
+
+  .box{border:1px solid var(--line);border-left-width:4px;border-radius:10px;
+    padding:1em 1.2em;margin:1.3em 0;background:var(--card)}
+  .box>:first-child{margin-top:0}.box>:last-child{margin-bottom:0}
+  .box p:first-child{margin-top:0}.box p:last-child{margin-bottom:0}
+  .box .k{font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;
+    display:block;margin-bottom:.45em}
+  .def{border-left-color:var(--def);background:var(--def-bg)}.def .k{color:var(--def)}
+  .gist{border-left-color:var(--accent);background:var(--accent-bg)}.gist .k{color:var(--accent-ink)}
+  .why{border-left-color:var(--why);background:var(--why-bg)}.why .k{color:var(--why)}
+  .warn{border-left-color:var(--warn);background:var(--warn-bg)}.warn .k{color:var(--warn)}
+  .flag{border-left-color:var(--flag);background:var(--flag-bg)}.flag .k{color:var(--flag)}
+  .data{border-left-color:var(--slate);background:var(--slatebg)}.data .k{color:var(--slate)}
+  .io{display:grid;grid-template-columns:1fr 1fr;gap:.9em}
+  .io.stack{grid-template-columns:1fr}
+  @media (max-width:820px){.io{grid-template-columns:1fr}}
+  .io .lab{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--faint);font-weight:700}
+  .io pre{margin:.25em 0 0;font-size:.8rem;line-height:1.5}
+  .data>p{font-size:.95rem}
+
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:1.1em 1.4em;margin:1.8em 0}
+  .toc .rk{font-family:var(--mono);font-size:.76rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--faint);margin-bottom:.5em}
+  .toc ol{margin:.35em 0 0;padding-left:1.4em}
+  .toc a{text-decoration:none;color:var(--ink)}
+  .toc a:hover{color:var(--accent-ink)}
+
+  .scroll{overflow-x:auto;margin:1.2em 0}
+  table{border-collapse:collapse;width:100%;margin:1.2em 0;font-size:1rem;background:var(--card);
+    font-variant-numeric:tabular-nums}
+  .scroll table{margin:0}
+  th,td{border:1px solid var(--line);padding:.55em .75em;text-align:left;vertical-align:top}
+  th,thead th{background:var(--panel);color:var(--ink);font-weight:700}
+  td.n,th.n{text-align:right}
+  .pass{color:var(--green);font-weight:700}
+  .failw{color:var(--red);font-weight:700}
+
+  .chip{display:inline-block;font-size:.74rem;font-weight:700;text-transform:uppercase;
+    letter-spacing:.06em;padding:.15em .55em;border-radius:4px;white-space:nowrap;border:1px solid}
+  .c-veto{background:var(--redbg);color:var(--red);border-color:var(--redline)}
+  .c-drop{background:var(--amberbg);color:var(--amber);border-color:var(--amberline)}
+  .c-never{background:var(--slatebg);color:var(--slate);border-color:var(--slateline)}
+  .c-bug{background:var(--bluebg);color:var(--blue);border-color:var(--blueline)}
+  .legend{display:flex;flex-wrap:wrap;gap:.5em 1.1em;margin:1em 0 0;font-size:.92rem;color:var(--soft)}
+  .legend span.chip{margin-right:.4em}
+
+  figure{margin:1.6em 0;text-align:center}
+  figure img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
+    background:#fff;padding:6px}
+  :root:not([data-theme="light"]) figure img{filter:brightness(.94) contrast(1.02)}
+  figcaption{font-size:.92rem;color:var(--soft);margin-top:.6em;
+    margin-left:auto;margin-right:auto}
+
+  /* the map diagram sits on its own plate and scrolls sideways rather than the page */
+  .mermaid{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:1.2em;margin:1.4em 0;overflow-x:auto;text-align:center;
+    font-family:var(--sans)}
+  .mermaid svg{max-width:100%;height:auto}
+
+  /* rendered maths inherits the page colour instead of MathJax's own default */
+  mjx-container,.katex{color:inherit}
+  mjx-container[display="true"],.katex-display{overflow-x:auto;overflow-y:hidden;padding:.15em 0}
+</style>
+</head><body>
+<div class="wrap">
+
+<p class="eyebrow"><span class="dot"></span>credit-copula &middot; structure and behaviour &middot; code walkthrough</p>
+<h1>credit-copula: reading the code</h1>
+<p class="lede">What this project computes, how the files fit together, and which
+settings actually change the answer. Written for someone opening the repository
+for the first time.</p>
+
+<div class="box def">
+  <span class="k">How to use this</span>
+  <p>Sections follow the order the code runs in. Every code snippet is copied
+  straight from the file named above it. Every number in a grey <b>Sample data</b>
+  box came from running the project on this machine in this session; nothing is
+  estimated. Coloured boxes flag design choices and traps.</p>
+</div>
+
+<div class="box why">
+  <span class="k">The process in plain English</span>
+  <p>Take one BBB-rated corporate bond. Over the next year it can stay BBB, move
+  up, move down, or default, each with a published probability and a matching
+  end-of-year price. Now hold two of those bonds and ask how bad a year can get.
+  The project answers that question twice. Method A pretends each bond's loss is
+  a smooth bell curve with the right average and the right spread. Method B keeps
+  the eight discrete rating outcomes and links the two bonds with a Gaussian
+  copula, which is a way of tying two random draws together without changing
+  either one's own distribution. Both methods use the same dependence input,
+  0.5. They agree on the average loss and disagree badly in the tail, and a
+  separate exact-integration module proves the tail numbers are right rather
+  than a simulation artefact.</p>
+</div>
+
+<h2 id="map"><span class="sec-no">00</span>Map</h2>
+
+<div class="mermaid">
+flowchart LR
+  cli["cli.main()"] --> pipe["pipeline.run_pipeline()"]
+  cfg["config.build_execution_context()"] --> pipe
+  pipe --> s02["step 02: rating table"]
+  s02 --> s03["step 03: Method A, matched Gaussian"]
+  s02 --> s04["step 04: Method B, Gaussian copula"]
+  s03 --> s05["steps 05-06: results, summary"]
+  s04 --> s05
+  s05 --> s07["steps 07-08: figures"]
+  s02 --> s09["step 09: size scaling"]
+  s07 --> figs[("outputs/figures")]
+  s09 --> figs
+  exact["model.exact_two_name_metrics()"] --> tests["tests + blog/generate_charts.py"]
+</div>
+<p class="fnote">Boxes are functions or step scripts; the cylinder is written
+output. Arrows show which way data moves. The bottom row is the audit layer: it
+does not touch the simulation pipeline, it independently checks it.</p>
+
+<div class="toc">
+  <div class="rk">Contents</div>
+  <ol>
+    <li><a href="#goal">What the project is for, and the folder layout</a></li>
+    <li><a href="#entry">Entry points &mdash; <code>cli.py</code>, <code>run_pipeline.py</code>, <code>demo.ipynb</code></a></li>
+    <li><a href="#namespace">The shared namespace &mdash; <code>config.py</code> and <code>pipeline.py</code></a></li>
+    <li><a href="#data">Steps 01&ndash;02 &mdash; imports, seed, and the rating table</a></li>
+    <li><a href="#methoda">Step 03 &mdash; Method A, the matched Gaussian</a></li>
+    <li><a href="#methodb">Step 04 &mdash; Method B, the Gaussian copula</a></li>
+    <li><a href="#results">Steps 05&ndash;06 &mdash; comparison and summary statistics</a></li>
+    <li><a href="#figures">Steps 07&ndash;08 &mdash; the figures</a></li>
+    <li><a href="#scaling">Step 09 &mdash; how risk grows with portfolio size</a></li>
+    <li><a href="#model">The audit layer &mdash; <code>model.py</code></a></li>
+    <li><a href="#tests">The tests &mdash; <code>tests/test_model.py</code></a></li>
+    <li><a href="#blog">The frozen evidence &mdash; <code>blog/generate_charts.py</code></a></li>
+    <li><a href="#settings">Settings, and what changing each one does</a></li>
+    <li><a href="#fixes">Fixes applied</a></li>
+    <li><a href="#callgraph">Call graph</a></li>
+    <li><a href="#edge">Edge cases</a></li>
+    <li><a href="#traps">Traps and idioms</a></li>
+    <li><a href="#questions">If someone points at a line</a></li>
+    <li><a href="#verify">How the project checks itself</a></li>
+    <li><a href="#limits">Limitations, stated honestly</a></li>
+  </ol>
+</div>
+
+<h2 id="goal"><span class="sec-no">01</span>What the project is for, and the folder layout</h2>
+
+<p>The research question is narrow and worth stating precisely: <b>if you feed
+the same dependence number, 0.5, into two different credit portfolio models, do
+you get the same tail risk?</b> The answer is no, and the project measures the
+gap.</p>
+
+<p>The repository started life as one Jupyter notebook. It was converted into a
+package without rewriting the analysis: the notebook cells became numbered
+Python files under <code>src/credit_copula/steps/</code>, and a small runner
+executes them in order inside one shared set of variables. Alongside that sits a
+second, genuinely reusable module, <code>model.py</code>, which computes the
+two-bond answer exactly by numerical integration instead of by random sampling.</p>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Path</th><th>What lives there</th><th>Reusable?</th></tr></thead>
+<tbody>
+<tr><td><code>src/credit_copula/cli.py</code></td><td>The <code>credit-copula</code> command; parses two flags.</td><td>Yes</td></tr>
+<tr><td><code>src/credit_copula/config.py</code></td><td>Project paths and the starting variable set for the steps.</td><td>Yes</td></tr>
+<tr><td><code>src/credit_copula/pipeline.py</code></td><td>Runs every <code>steps/*.py</code> file in filename order.</td><td>Yes</td></tr>
+<tr><td><code>src/credit_copula/steps/01..09_*.py</code></td><td>The original notebook, split into nine ordered scripts.</td><td>No, procedural by design</td></tr>
+<tr><td><code>src/credit_copula/model.py</code></td><td>Exact two-name integration, validation, and quantiles.</td><td>Yes</td></tr>
+<tr><td><code>tests/test_model.py</code></td><td>Seven hand-checkable tests of <code>model.py</code>.</td><td>&mdash;</td></tr>
+<tr><td><code>scripts/run_pipeline.py</code></td><td>Six-line wrapper that calls <code>cli.main()</code>.</td><td>&mdash;</td></tr>
+<tr><td><code>notebooks/demo.ipynb</code></td><td>Two cells; the code cell is <code>run_pipeline()</code>.</td><td>&mdash;</td></tr>
+<tr><td><code>blog/generate_charts.py</code></td><td>Standalone rerun that freezes every published number to CSV.</td><td>Self-contained</td></tr>
+<tr><td><code>docs/reference/</code></td><td>The untouched original notebook plus a Markdown copy of it.</td><td>Read-only</td></tr>
+<tr><td><code>outputs/figures/</code></td><td>Five PNG files written by steps 07&ndash;09. Git-ignored.</td><td>Generated</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="box warn"><span class="k">Trap</span>
+<p>There are <b>two</b> implementations of the same experiment:
+<code>src/credit_copula/steps/</code> and <code>blog/generate_charts.py</code>.
+They are deliberately independent, they use different random number generators,
+and they will not print identical figures. If you change the rating table you
+must change it in both places, plus in <code>tests/test_model.py</code>, which
+carries a third copy of the same eight numbers.</p></div>
+
+<h2 id="entry"><span class="sec-no">02</span>Entry points &mdash; <code>cli.py</code>, <code>run_pipeline.py</code>, <code>demo.ipynb</code></h2>
+
+<pre><span class="c"># src/credit_copula/cli.py</span>
+<span class="c"># Smoke runs keep full logic but use fewer paths for a quicker sanity check.</span>
+SMOKE_OVERRIDES = {"n_simulations": 50_000}
+
+
+def main() -&gt; None:
+    <span class="c">"""Run the project pipeline from the command line."""</span>
+    parser = argparse.ArgumentParser(description="Run the notebook-derived pipeline.")
+    parser.add_argument("--smoke", action="store_true", ...)
+    parser.add_argument("--print-keys", action="store_true", ...)
+    args = parser.parse_args()
+
+    overrides = dict(SMOKE_OVERRIDES) if args.smoke else {}
+    context = run_pipeline(context_overrides=overrides)
+
+    if args.print_keys:
+        pprint(sorted(context.keys()))</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>There is one command. It either runs the full experiment or a cut-down
+version, and it can list the names of everything the experiment left behind.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> command-line flags <code>--smoke</code> and
+<code>--print-keys</code>. <b>Output:</b> printed tables, five PNG files under
+<code>outputs/figures/</code>, and a dictionary of every variable the steps
+created. <b>Role:</b> the only supported way to start the pipeline; the script
+and the notebook both funnel into it.</p></div>
+
+<p>All three entry points are the same thing wearing different hats:</p>
+
+<pre><span class="c"># scripts/run_pipeline.py, in full</span>
+from credit_copula.cli import main
+
+if __name__ == "__main__":
+    main()
+
+<span class="c"># notebooks/demo.ipynb, the only code cell</span>
+from credit_copula.pipeline import run_pipeline
+
+context = run_pipeline()</pre>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io">
+<div><span class="lab">in &mdash; shell</span>
+<pre>MPLBACKEND=Agg uv run credit-copula --smoke</pre></div>
+<div><span class="lab">out &mdash; first lines printed</span>
+<pre>Rating Transition Data for BBB Bonds:
+ Rating  Probability (%)  Value ($)
+    AAA             0.02     109.37
+     AA             0.33     109.19
+      A             5.95     108.66
+    BBB            86.93     107.55
+...
+Number of Simulations: 50,000   &lt;- the override took effect</pre></div>
+</div>
+<p>Measured on this machine: <code>--smoke</code> took 22.3 seconds wall clock,
+the full run took 18.5 seconds. The smoke run is not faster. See the trap below.</p></div>
+
+<div class="box warn"><span class="k">Trap</span>
+<p><code>--smoke</code> only shrinks <code>n_simulations</code>, which steps 03
+and 04 read. Step 09, the portfolio-size sweep, has its own hard-coded
+<code>SCALING_SIMULATIONS = 200_000</code> and ignores the override entirely.
+Since step 09 repeats that for eleven portfolio sizes up to 100 bonds, it
+dominates the runtime, which is why smoke mode saves nothing. Treat
+<code>--smoke</code> as "cheaper tail estimates", not "quick run".</p></div>
+
+<h2 id="namespace"><span class="sec-no">03</span>The shared namespace &mdash; <code>config.py</code> and <code>pipeline.py</code></h2>
+
+<p>This is the one structural idea you must understand before anything else
+makes sense.</p>
+
+<pre><span class="c"># src/credit_copula/pipeline.py</span>
+def run_pipeline(context_overrides: dict[str, Any] | None = None) -&gt; dict[str, Any]:
+    <span class="c">"""Run each generated step script with a shared notebook-style context."""</span>
+    config = ProjectConfig()
+    context = build_execution_context(
+        config=config, context_overrides=context_overrides
+    )
+
+    <span class="c"># Filenames are prefixed 01_, 02_, ... so lexical sort is run order.</span>
+    for step_path in sorted(config.steps_dir.glob("*.py")):
+        context["__file__"] = str(step_path)
+        source = step_path.read_text()
+        exec(compile(source, str(step_path), "exec"), context)
+
+    return context</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>It reads each numbered file as text and runs it, handing every file the same
+bag of variables. A name created in file 02 is still there in file 09, exactly
+like running notebook cells one after another.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> an optional dictionary of overrides. <b>Output:</b> the
+<code>context</code> dictionary after all nine files have run, holding roughly
+120 names including the simulated loss arrays and the results tables.
+<b>Role:</b> the engine. Nothing else in the package executes the analysis.</p></div>
+
+<p><code>build_execution_context</code> seeds that bag before the first file
+runs. The keys are the contract between the runner and the step files:</p>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io">
+<div><span class="lab">in &mdash; run_pipeline(context_overrides={"n_simulations": 50000})</span>
+<pre>ProjectConfig().project_root
+  = .../one-time-projects/credit-copula</pre></div>
+<div><span class="lab">out &mdash; starting context keys</span>
+<pre>__name__            '__main__'
+PROJECT_ROOT        &lt;repo root&gt;
+DATA_DIR            &lt;root&gt;/data
+PROCESSED_DATA_DIR  &lt;root&gt;/data/processed
+OUTPUTS_DIR         &lt;root&gt;/outputs
+FIGURES_DIR         &lt;root&gt;/outputs/figures
+TABLES_DIR          &lt;root&gt;/outputs/tables
+OVERRIDES           {'n_simulations': 50000}
+SMOKE_TEST_MODE     False
+n_simulations       50000   &lt;- overrides are also copied in flat</pre></div>
+</div>
+<p>The three output folders are created with <code>mkdir(parents=True,
+exist_ok=True)</code> before any step runs, so a fresh clone does not fail on a
+missing directory.</p></div>
+
+<div class="box why"><span class="k">Why it is written this way</span>
+<p>The conversion goal was notebook parity, not a redesign. Using
+<code>exec</code> with one shared dictionary reproduces notebook semantics
+exactly, so the split scripts can be diffed line by line against
+<code>docs/reference/credit-copula.ipynb</code>. The price is that the step
+files are not importable modules and cannot be unit tested individually.</p></div>
+
+<div class="box why"><span class="k">Why the root path is found this way</span>
+<p><code>Path(__file__).resolve().parents[2]</code> walks up from
+<code>src/credit_copula/config.py</code>: parent 0 is
+<code>credit_copula/</code>, parent 1 is <code>src/</code>, parent 2 is the
+repository root. Every output path is derived from that, so the command works
+from any working directory.</p></div>
+
+<div class="box warn"><span class="k">Trap</span>
+<p>Ordering comes from <code>sorted(glob("*.py"))</code>, which is plain
+alphabetical order on the filename. It works only because the files are numbered
+<code>01_</code> to <code>09_</code> with a leading zero. Add a tenth step named
+<code>10_...</code> and it will sort between <code>09_</code> and nothing at all
+&mdash; that is fine &mdash; but a step named <code>step_ten.py</code> would run
+before <code>01_</code>. Also, <b>any</b> stray <code>.py</code> file dropped in
+that folder becomes part of the pipeline.</p></div>
+
+<h2 id="data"><span class="sec-no">04</span>Steps 01&ndash;02 &mdash; imports, seed, and the rating table</h2>
+
+<pre><span class="c"># src/credit_copula/steps/01_..._dependence_structures.py</span>
+<span class="c"># Every step file runs inside one shared namespace, so this first step imports</span>
+<span class="c"># for the whole pipeline. ``pd``, ``stats``, and ``norm`` look unused here but</span>
+<span class="c"># are read by later steps; do not let an automatic "unused import" cleanup</span>
+<span class="c"># remove them.</span>
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd  <span class="c"># noqa: F401  used by steps 02, 05, 06, 09</span>
+import seaborn as sns
+from scipy import stats  <span class="c"># noqa: F401  used by steps 05, 06</span>
+from scipy.stats import norm  <span class="c"># noqa: F401  used by steps 04, 09</span>
+
+<span class="c"># Fixed seed so notebook reruns and smoke tests are reproducible.</span>
+np.random.seed(111111)</pre>
+
+<pre><span class="c"># src/credit_copula/steps/02_data_setup.py</span>
+<span class="c"># One-year rating migration probabilities and end-of-year values for BBB names.</span>
+ratings = ["AAA", "AA", "A", "BBB", "BB", "B", "CCC", "Default"]
+probabilities = np.array([0.02, 0.33, 5.95, 86.93, 5.30, 1.17, 0.12, 0.18]) / 100
+values = np.array([109.37, 109.19, 108.66, 107.55, 102.02, 98.10, 83.64, 51.13])
+
+BBB_RATING_INDEX = 3
+initial_bond_value = values[BBB_RATING_INDEX]
+
+<span class="c"># Cumulative probabilities drive inverse-transform sampling in the copula method.</span>
+cumulative_probs = np.cumsum(probabilities)</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>Step 01 loads the libraries and fixes the random seed. Step 02 writes down the
+whole input dataset: eight possible ratings a year from now, how likely each is,
+and what the bond is worth in each case.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> nothing external. The numbers are literals in the file &mdash;
+the standard one-year transition row for a BBB issuer, taken from the original
+notebook. <b>Output:</b> <code>ratings</code>, <code>probabilities</code>,
+<code>values</code>, <code>initial_bond_value = 107.55</code>, and
+<code>cumulative_probs</code>. <b>Role:</b> every later step reads these five
+names out of the shared namespace.</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io stack">
+<div><span class="lab">out &mdash; printed by step 02, full run</span>
+<pre> Rating  Probability (%)  Value ($)      cumulative_probs
+    AAA             0.02     109.37      0.000200
+     AA             0.33     109.19      0.003500
+      A             5.95     108.66      0.063000
+    BBB            86.93     107.55      0.932300   &lt;- the starting rating, so loss = 0 here
+     BB             5.30     102.02      0.985300
+      B             1.17      98.10      0.997000
+    CCC             0.12      83.64      0.998200
+Default             0.18      51.13      1.000000
+
+Initial BBB Bond Value: $107.55
+Sum of probabilities: 1.0000</pre></div>
+</div>
+<p>The ordering is not cosmetic. Ratings run best to worst, so after the
+cumulative sum, <b>default sits in the upper tail</b> of the latent normal
+variable. Some credit models use the opposite sign convention; flipping the sign
+of every latent draw gives the same answer.</p></div>
+
+<div class="box warn"><span class="k">Trap</span>
+<p><code>np.cumsum(probabilities)</code> ends at
+<code>1.0000000000000002</code>, not <code>1.0</code>, because of floating-point
+rounding. That happens to be lucky: the copula step looks up a uniform random
+number in this array, and no uniform can ever exceed 1, so the lookup can never
+run off the end. Had the rounding gone the other way and produced
+<code>0.9999999999999999</code>, an extreme draw would return index 8 into an
+eight-element array and crash. See the edge-cases table.</p></div>
+
+<h2 id="methoda"><span class="sec-no">05</span>Step 03 &mdash; Method A, the matched Gaussian</h2>
+
+<pre><span class="c"># src/credit_copula/steps/03_method_a_multivariate_gaussian_approximation.py</span>
+n_simulations = OVERRIDES.get("n_simulations", 1_000_000)
+correlation = 0.5
+
+initial_portfolio_value = 2 * initial_bond_value
+
+<span class="c"># Loss if the bond lands in each rating state (positive means economic loss).</span>
+single_bond_losses = initial_bond_value - values
+mean_loss_single = float(np.dot(probabilities, single_bond_losses))
+var_loss_single = float(
+    np.dot(probabilities, (single_bond_losses - mean_loss_single) ** 2)
+)
+std_loss_single = np.sqrt(var_loss_single)
+
+<span class="c"># Equicorrelated Gaussian shocks for the two-bond portfolio.</span>
+correlation_matrix_mvn = np.array([[1.0, correlation], [correlation, 1.0]])
+L = np.linalg.cholesky(correlation_matrix_mvn)
+
+z_independent = np.random.randn(n_simulations, 2)
+z_correlated = z_independent @ L.T
+
+<span class="c"># Method A: approximate each bond loss as Gaussian with matched mean and variance.</span>
+losses_mvn = mean_loss_single + std_loss_single * z_correlated
+credit_losses_mvn = losses_mvn.sum(axis=1)</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>Work out the average loss on one bond and how much it typically varies. Then
+throw away the eight discrete outcomes and pretend the loss is a smooth bell
+curve with that same average and that same variability. Draw two such losses at
+a time, correlated at 0.5, and add them.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> the rating table from step 02 and <code>n_simulations</code>.
+<b>Output:</b> <code>losses_mvn</code>, an array of shape
+<code>(n_simulations, 2)</code> in dollars, and
+<code>credit_losses_mvn</code>, its row sums. <b>Role:</b> the benchmark that
+Method B is measured against.</p></div>
+
+<div class="box def"><span class="k">The formula</span>
+<p>One-name loss in rating state $k$, its mean, and its variance:</p>
+<p>$$\ell_k = V_0 - V_k, \qquad
+\mu = \sum_{k=1}^{K} p_k\,\ell_k, \qquad
+\sigma^2 = \sum_{k=1}^{K} p_k\,(\ell_k-\mu)^2$$</p>
+<p>Method A then replaces the discrete loss by a normal variable with those two
+moments, for names $i = 1, 2$:</p>
+<p>$$L_i = \mu + \sigma Z_i, \qquad
+(Z_1,Z_2) \sim N\!\left(\mathbf{0}, \begin{pmatrix}1 &amp; \rho \\ \rho &amp; 1\end{pmatrix}\right)$$</p>
+<p class="fnote">$V_0$ is the starting bond price in dollars ($107.55$); $V_k$
+is the end-of-year price in state $k$; $p_k$ is the probability of state $k$;
+$K = 8$ is the number of rating states; $\mu$ is the expected one-name loss in
+dollars; $\sigma$ is its standard deviation in dollars; $Z_i$ is a standard
+normal draw for name $i$; $\rho = 0.5$ is the correlation between the two
+draws. "Matched" means only the first two moments are reproduced &mdash; the
+shape is not.</p></div>
+
+<div class="box def"><span class="k">The formula &mdash; why the Cholesky step works</span>
+<p>The Cholesky factor $L$ is the lower-triangular matrix satisfying
+$L L^{\top} = \Sigma$, where $\Sigma$ is the target correlation matrix. If $X$
+is a row of independent standard normals then $Y = X L^{\top}$ has covariance</p>
+<p>$$\operatorname{Cov}(Y) = L\,\operatorname{Cov}(X)\,L^{\top} = L I L^{\top} = \Sigma$$</p>
+<p class="fnote">$I$ is the identity matrix. For $\rho = 0.5$ this gives
+$Y_1 = X_1$ and $Y_2 = 0.5 X_1 + 0.866 X_2$, so the second name shares half of
+the first name's shock.</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io">
+<div><span class="lab">in &mdash; probabilities, values (step 02)</span>
+<pre>single_bond_losses = 107.55 - values
+= [-1.82 -1.64 -1.11  0.00
+    5.53  9.45 23.91 56.42]</pre>
+<p class="fnote">Check by hand: 107.55 &minus; 109.37 = &minus;1.82 (an upgrade
+is a gain), and 107.55 &minus; 51.13 = 56.42 on default.</p></div>
+<div><span class="lab">out &mdash; printed, full run</span>
+<pre>mean_loss_single = 0.462082
+std_loss_single  = 2.99178384
+
+Cholesky factor L:
+[[1.        0.       ]
+ [0.5       0.8660254]]   &lt;- 0.8660254 = sqrt(1 - 0.5^2)</pre></div>
+</div>
+<p>Whole-sample fact: <code>initial_portfolio_value</code> is
+$2 \times 107.55 = 215.10$ dollars, and the exact portfolio mean loss is
+$2 \times 0.462082 = 0.924164$ dollars, which the one-million-path simulation
+reproduced as 0.9251.</p></div>
+
+<div class="box flag"><span class="k">The weakness, stated honestly</span>
+<p>A normal distribution is symmetric and has no floor. Method A therefore
+produces portfolio "losses" as low as &minus;24.00 dollars in the full run, even
+though the best possible real outcome is both bonds upgrading to AAA, a gain of
+3.64 dollars. The approximation is wrong on both ends; the project's point is
+that it is wrong by much more on the right end.</p></div>
+
+<h2 id="methodb"><span class="sec-no">06</span>Step 04 &mdash; Method B, the Gaussian copula</h2>
+
+<pre><span class="c"># src/credit_copula/steps/04_method_b_gaussian_copula_on_rating_thresholds.py</span>
+<span class="c"># Same latent correlation as Method A; reuse Cholesky factor L from the prior step.</span>
+z_independent = np.random.randn(n_simulations, 2)
+z_correlated = z_independent @ L.T
+
+<span class="c"># Gaussian copula: correlated normals -&gt; uniforms -&gt; discrete ratings via inverse CDF.</span>
+uniforms = norm.cdf(z_correlated)
+rating_idx1_copula = np.searchsorted(cumulative_probs, uniforms[:, 0], side="right")
+rating_idx2_copula = np.searchsorted(cumulative_probs, uniforms[:, 1], side="right")
+
+bond1_values_copula = values[rating_idx1_copula]
+bond2_values_copula = values[rating_idx2_copula]
+
+losses_copula = np.column_stack((
+    initial_bond_value - bond1_values_copula,
+    initial_bond_value - bond2_values_copula,
+))
+credit_losses_copula = losses_copula.sum(axis=1)</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>Draw the same kind of correlated pair of normal numbers, but instead of
+turning them into dollar losses directly, convert each one into a percentage
+between 0 and 100, and read off which rating band that percentage falls into.
+The bond then takes exactly one of its eight real prices. The correlation lives
+entirely in the hidden normal draws; each bond on its own still shows exactly
+the published rating probabilities.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> <code>cumulative_probs</code> and <code>values</code> from step
+02, <code>L</code> from step 03, <code>n_simulations</code>. <b>Output:</b>
+<code>rating_idx1_copula</code> and <code>rating_idx2_copula</code>, integer
+arrays of shape <code>(n_simulations,)</code> holding 0 to 7;
+<code>losses_copula</code>, shape <code>(n_simulations, 2)</code>, in dollars.
+<b>Role:</b> the model the project is arguing for.</p></div>
+
+<div class="box def"><span class="k">The formula</span>
+<p>Convert the cumulative rating probabilities into cut points on the latent
+normal scale:</p>
+<p>$$c_k = \Phi^{-1}\!\left(\sum_{j=1}^{k} p_j\right), \qquad k = 1,\dots,K-1$$</p>
+<p>The rating drawn for name $i$ is the first band whose cut point the uniform
+draw has not yet passed:</p>
+<p>$$K_i = \min\{\,k : U_i \le F_k\,\}, \qquad
+U_i = \Phi(Z_i), \qquad F_k = \sum_{j=1}^{k} p_j$$</p>
+<p>and the loss is $\ell_{K_i} = V_0 - V_{K_i}$.</p>
+<p class="fnote">$\Phi$ is the standard normal cumulative distribution function
+and $\Phi^{-1}$ its inverse; $U_i$ is a uniform draw on $(0,1)$ obtained by
+pushing the latent normal $Z_i$ through $\Phi$; $F_k$ is the cumulative
+probability of the first $k$ rating states; $c_k$ is the latent cut point;
+$K_i$ is the rating index chosen for name $i$. Because $\Phi$ is increasing,
+comparing $U_i$ against $F_k$ and comparing $Z_i$ against $c_k$ are the same
+test &mdash; the code does the first, <code>model.py</code> does the second.</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io stack">
+<div><span class="lab">in &mdash; the cut points, from model.latent_rating_edges(probabilities)</span>
+<pre>       -inf  -3.540084  -2.696844  -1.530068   1.493142   2.178081   2.747781   2.911238       inf
+   |----AAA----|----AA----|-----A-----|----BBB----|----BB----|-----B-----|---CCC---|--Default--|</pre></div>
+</div>
+<div class="io">
+<div><span class="lab">in &mdash; a worked pair of latent values (not a sampled row)</span>
+<pre>Z1 = 0.00  -&gt; U1 = norm.cdf(0.00) = 0.500000
+Z2 = 2.95  -&gt; U2 = norm.cdf(2.95) = 0.998411</pre></div>
+<div><span class="lab">out &mdash; the rating and the loss</span>
+<pre>U1 = 0.500000 falls in (0.0630, 0.9323]  -&gt; index 3 = BBB     -&gt; loss  $0.00
+U2 = 0.998411 falls above 0.9982         -&gt; index 7 = Default -&gt; loss $56.42
+                                            &lt;- 2.95 is above the
+                                               default cut point 2.911238</pre></div>
+</div>
+<p>Whole-sample fact from the one-million-path run: the two methods produce
+almost the same average loss (0.9251 versus 0.9284 dollars) but the 99.9 percent
+worst case is 16.95 dollars under Method A and 61.95 dollars under Method B, a
+gap of 265 percent.</p></div>
+
+<div class="box why"><span class="k">Why the marginals survive</span>
+<p>This is the whole appeal of a copula. Whatever correlation you put into the
+latent normals, $U_i = \Phi(Z_i)$ is still uniform on $(0,1)$ for each name
+separately, so each bond still lands in AAA exactly 0.02 percent of the time and
+defaults exactly 0.18 percent of the time. Correlation changes only <b>which
+pairs occur together</b>. The tests confirm this to within $2 \times 10^{-16}$.</p></div>
+
+<div class="box warn"><span class="k">Trap: 0.5 is not a 0.5 correlation between losses</span>
+<p>The input <code>correlation = 0.5</code> applies to the invisible normal
+variables, not to the dollar losses and not to defaults. Pushing a smooth
+variable through eight discrete steps destroys most of the linear dependence.
+Measured on the full run: Method A's loss correlation came out at 0.5015, Method
+B's at 0.2033. The exact value from integration is <b>0.2013969</b>. The
+correlation between the two default indicators, which is what a regulator would
+ask for, is smaller still: <b>0.0658607</b>.</p></div>
+
+<div class="box why"><span class="k">Why <code>side="right"</code></span>
+<p><code>np.searchsorted(cum, u, side="right")</code> returns the number of cut
+points that $u$ has already passed, which is exactly the zero-based rating
+index. With <code>side="left"</code> a draw landing exactly on a cut point would
+be assigned to the better rating instead of the worse one. That is a
+probability-zero event with continuous draws, so the two behave identically in
+practice; <code>"right"</code> is the convention that matches the closed-above
+intervals in the formula.</p></div>
+
+<div class="box flag"><span class="k">The weakness, stated honestly</span>
+<p>Step 04 draws a brand new set of random numbers rather than reusing step 03's
+<code>z_correlated</code>. The two methods are therefore compared on different
+random paths, so part of every reported difference is simulation noise rather
+than model difference. With one million paths this is small next to the effect
+being measured, and section 10 removes the doubt entirely by computing Method B
+exactly. But reusing the same draws would have been a strictly better paired
+comparison.</p></div>
+
+<h2 id="results"><span class="sec-no">07</span>Steps 05&ndash;06 &mdash; comparison and summary statistics</h2>
+
+<pre><span class="c"># src/credit_copula/steps/05_results_analysis.py</span>
+expected_loss_mvn = np.mean(credit_losses_mvn)
+var_99_mvn = np.percentile(credit_losses_mvn, 99)
+...
+<span class="c"># Spearman on a subsample keeps rank-correlation cost bounded for large n_simulations.</span>
+rng_diag = np.random.default_rng(20251025)
+diagnostic_sample_size = min(n_simulations, 200_000)
+diagnostic_idx = rng_diag.choice(
+    n_simulations, size=diagnostic_sample_size, replace=False
+)
+spearman_mvn = stats.spearmanr(
+    losses_mvn[diagnostic_idx, 0], losses_mvn[diagnostic_idx, 1],
+).correlation</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>Step 05 builds the headline four-column comparison table. Step 06 builds a
+longer table of ten distribution statistics for each method, plus the difference
+and the percentage difference.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> the two loss arrays. <b>Output:</b> <code>results_df</code>
+(2 rows) and <code>stats_summary</code> (10 rows), both printed and both left in
+the shared namespace. <b>Role:</b> the numbers quoted in the article.</p></div>
+
+<div class="box def"><span class="k">The formula &mdash; Value-at-Risk</span>
+<p>Value-at-Risk at confidence level $\alpha$ is the loss that is exceeded only
+$1-\alpha$ of the time:</p>
+<p>$$\mathrm{VaR}_\alpha(L) = \inf\{\,x : \Pr(L \le x) \ge \alpha\,\}$$</p>
+<p class="fnote">$L$ is the portfolio loss in dollars; $\alpha$ is the
+confidence level, here 0.95, 0.99, or 0.999. In the steps this is estimated by
+<code>np.percentile</code>, which interpolates between neighbouring sorted
+observations. In <code>model.py</code> it is computed exactly by
+<code>weighted_quantile</code>, which does not interpolate because the loss can
+only take 64 distinct values.</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io stack">
+<div><span class="lab">out &mdash; results_df, full run, 1,000,000 paths</span>
+<pre>                          Method  Expected Credit Loss ($)  99% VaR ($)  Linear Corr  Spearman Corr
+A: Multivariate Gaussian Approx.                    0.9251      13.0151       0.5015         0.4849
+              B: Gaussian Copula                    0.9284      14.9800       0.2033         0.2677</pre></div>
+</div>
+<div class="io stack">
+<div><span class="lab">out &mdash; stats_summary, full run</span>
+<pre>         Metric   Method A   Method B  Difference (B-A)        % Diff
+      Mean Loss   0.925088   0.928422          0.003334  3.604444e-01
+    Median Loss   0.925416   0.000000         -0.925416 -1.000000e+02   &lt;- B's median is exactly 0: both bonds stay BBB
+        Std Dev   5.184416   4.690709         -0.493706 -9.522892e+00
+       Skewness   0.000488   9.901917          9.901428  2.027890e+06
+Excess Kurtosis   0.005166 136.957220        136.952054  2.650790e+06
+        95% VaR   9.457193   5.530000         -3.927193 -4.152599e+01   &lt;- B is SAFER here
+        99% VaR  13.015075  14.980000          1.964925  1.509730e+01
+      99.9% VaR  16.948367  61.950000         45.001633  2.655219e+02   &lt;- and far more dangerous here
+       Min Loss -23.999319  -3.640000         20.359319  8.483290e+01
+       Max Loss  25.557397 112.840000         87.282603  3.415160e+02</pre></div>
+</div>
+<p>Every Method B number is a sum of two entries from
+<code>single_bond_losses</code> and can be checked by hand:
+$5.53 = 5.53 + 0.00$ (one bond to BB, one stays BBB);
+$14.98 = 5.53 + 9.45$ (one to BB, one to B);
+$61.95 = 56.42 + 5.53$ (one defaults, one falls to BB);
+$112.84 = 2 \times 56.42$ (both default);
+$-3.64 = 2 \times (-1.82)$ (both upgrade to AAA).</p></div>
+
+<div class="box why"><span class="k">Why the rank correlation is subsampled</span>
+<p><code>stats.spearmanr</code> sorts its inputs, so it costs about
+$n \log n$ and allocates rank arrays. On a million paths that is wasteful for a
+diagnostic. The code draws 200,000 rows without replacement using a dedicated
+generator seeded at 20251025, so the diagnostic does not consume draws from the
+global stream and does not shift any downstream result.</p></div>
+
+<div class="box warn"><span class="k">Trap: read the "% Diff" column with care</span>
+<p>It divides by Method A's value in absolute terms. Method A's skewness is
+0.000488, which is simply Monte Carlo noise around a true value of zero, so the
+percentage difference of 2,027,890 percent is arithmetically correct and
+completely meaningless. The same applies to the excess kurtosis row. Use the raw
+difference column for those two.</p></div>
+
+<div class="box warn"><span class="k">Trap: 95 percent VaR points the wrong way</span>
+<p>At the 95 percent level the copula is the <b>less</b> risky model
+(5.53 against 9.46 dollars), because most of its probability sits on the single
+outcome "nothing happened". Only past about the 98th percentile does the
+discrete model overtake. A study that stopped at 95 percent would draw exactly
+the opposite conclusion to this project's.</p></div>
+
+<h2 id="figures"><span class="sec-no">08</span>Steps 07&ndash;08 &mdash; the figures</h2>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>Step 07 draws one six-panel overview image. Step 08 redraws three of those
+panels on their own, larger, for publication.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> the loss arrays and rating indices already in the namespace.
+<b>Output:</b> four PNG files at 300 dots per inch under
+<code>outputs/figures/</code>: <code>001_credit_risk_comparison_overview.png</code>,
+<code>003_loss_distribution.png</code>, <code>004_var_comparison.png</code>,
+<code>005_tail_risk.png</code>. <b>Role:</b> presentation only; nothing later
+reads them.</p></div>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Panel in step 07</th><th>What it shows</th><th>Worth knowing</th></tr></thead>
+<tbody>
+<tr><td>1. Loss distribution</td><td>Both methods on shared bins.</td><td>The copula is a few tall spikes, not a curve.</td></tr>
+<tr><td>2. VaR bars</td><td>Six confidence levels side by side.</td><td>This is where the crossover at roughly the 98th percentile is visible.</td></tr>
+<tr><td>3. Tail histogram</td><td>Losses above Method A's 90th percentile.</td><td>The cutoff comes from Method A, so the two series are not filtered on their own scale.</td></tr>
+<tr><td>4. Joint rating heat map</td><td>An 8 by 8 grid of paired outcomes.</td><td>Built with <code>np.bincount</code> on <code>idx1 * 8 + idx2</code>; this is the simulated version of the matrix <code>model.py</code> integrates exactly.</td></tr>
+<tr><td>5. Exceedance curve</td><td>Probability of exceeding each loss, log scale.</td><td>The very last point has exceedance exactly 0 and silently disappears on a log axis.</td></tr>
+<tr><td>6. Quantile-quantile plot</td><td>Method A quantiles against Method B.</td><td>Departure from the 45-degree line is the whole story of the project.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="box warn"><span class="k">Trap</span>
+<p>Step 08 uses the variable <code>figures_dir</code>, which is created in step
+07 (<code>figures_dir = FIGURES_DIR</code>). Step 09 uses it too. Running any of
+steps 08 or 09 without step 07 raises <code>NameError</code>. This is the cost
+of the shared-namespace design: the dependencies between files are invisible
+from the filenames.</p></div>
+
+<div class="box warn"><span class="k">Trap</span>
+<p>Every figure ends with <code>plt.show()</code> but never
+<code>plt.close()</code>. Under an interactive backend that is fine. Under
+<code>MPLBACKEND=Agg</code>, which is how the pipeline is meant to be run,
+<code>plt.show()</code> does nothing and the five figures stay open in memory
+until the process exits. Five is harmless; a loop that made figures would leak.</p></div>
+
+<h2 id="scaling"><span class="sec-no">09</span>Step 09 &mdash; how risk grows with portfolio size</h2>
+
+<pre><span class="c"># src/credit_copula/steps/09_portfolio_size_scaling_analysis.py</span>
+SCALING_SIMULATIONS = 200_000
+VAR_PERCENTILE = 99
+BOND_COUNTS = [1, 2, 3, 5, 10, 15, 20, 30, 50, 75, 100]
+
+
+def correlated_standard_normals(
+    n_sims: int, n_bonds: int, correlation: float
+) -&gt; np.ndarray:
+    <span class="c">"""Draw (n_sims, n_bonds) standard normals with constant pairwise correlation."""</span>
+    corr_matrix = np.full((n_bonds, n_bonds), correlation)
+    np.fill_diagonal(corr_matrix, 1.0)
+    cholesky = np.linalg.cholesky(corr_matrix)
+    z_independent = np.random.randn(n_sims, n_bonds)
+    return z_independent @ cholesky.T
+
+
+def portfolio_var_99_copula(n_bonds: int, n_sims: int, correlation: float) -&gt; float:
+    <span class="c">"""99th percentile portfolio credit loss under the Gaussian copula ..."""</span>
+    z_correlated = correlated_standard_normals(n_sims, n_bonds, correlation)
+    uniforms = norm.cdf(z_correlated)
+    rating_indices = np.searchsorted(cumulative_probs, uniforms, side="right")
+    bond_values = values[rating_indices]
+    per_bond_losses = initial_bond_value - bond_values
+    portfolio_losses = per_bond_losses.sum(axis=1)
+    return float(np.percentile(portfolio_losses, VAR_PERCENTILE))</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>Repeat the whole experiment for portfolios of 1, 2, 3, ... up to 100
+identical BBB bonds, and see whether spreading money across more names actually
+reduces risk per bond. Under both models it does, but much less under the
+copula.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> the rating table, plus <code>mean_loss_single</code> and
+<code>std_loss_single</code> from step 03. <b>Output:</b>
+<code>scaling_results</code>, an 11-row DataFrame, and
+<code>006_var_vs_portfolio_size.png</code>. <b>Role:</b> the "does
+diversification help?" section of the article.</p></div>
+
+<div class="box def"><span class="k">The formula &mdash; equicorrelated portfolio variance</span>
+<p>For $n$ identical names each with loss variance $\sigma^2$ and pairwise
+correlation $\rho$, the total portfolio variance is</p>
+<p>$$\operatorname{Var}\!\left(\sum_{i=1}^{n} L_i\right)
+= \sum_{i=1}^{n}\operatorname{Var}(L_i) + \sum_{i \ne j}\operatorname{Cov}(L_i,L_j)
+= \sigma^2\big[\,n + \rho\,n(n-1)\,\big]$$</p>
+<p class="fnote">$n$ is the number of bonds; $L_i$ is name $i$'s loss in
+dollars; $\sigma^2$ is the shared one-name variance; $\rho$ is the pairwise
+correlation. There are $n(n-1)$ ordered off-diagonal pairs, each contributing
+$\rho\sigma^2$. Per bond the standard deviation is
+$\sigma\sqrt{n + \rho n(n-1)}\,/\,n$, which tends to $\sigma\sqrt{\rho}$ as $n$
+grows: correlation puts a floor under diversification. With $\rho = 0.5$ and
+$\sigma = 2.99178$, that floor is $2.115$ dollars per bond.</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io stack">
+<div><span class="lab">out &mdash; printed, full run</span>
+<pre> Number of Bonds  Copula 99% VaR ($)  MVN 99% VaR ($)  Copula VaR per Bond ($)  MVN VaR per Bond ($)
+               1                9.45             7.41                     9.45                  7.41
+               2               14.98            13.00                     7.49                  6.50
+               3               20.51            18.38                     6.84                  6.13
+               5               34.98            29.25                     7.00                  5.85
+              10               76.93            56.03                     7.69                  5.60   &lt;- per-bond risk goes UP
+              15              106.37            83.26                     7.09                  5.55
+              20              136.15           109.50                     6.81                  5.47
+              30              196.77           162.66                     6.56                  5.42
+              50              319.97           270.98                     6.40                  5.42
+              75              472.08           405.03                     6.29                  5.41
+             100              639.18           541.08                     6.39                  5.41</pre></div>
+</div>
+<p>Hand-check on the Method A column at $n = 2$:
+$2 \times 0.462082 + 2.326348 \times 2.99178 \times \sqrt{2 + 0.5 \times 2} = 12.98$,
+against the simulated 13.00. The 0.02 difference is Monte Carlo noise on 200,000
+paths.</p></div>
+
+<div class="box why"><span class="k">Why the copula per-bond curve is not smooth</span>
+<p>It falls from 9.45 to 6.84, jumps back up to 7.69 at ten bonds, then drifts
+down again. That is not a bug. The portfolio loss can only take values that are
+sums of the eight discrete state losses, so the 99th percentile has to land on
+one of those attainable rungs. As $n$ changes, which rung sits at the 99th
+percentile changes in jumps. The Method A curve is smooth because a normal
+distribution has no rungs.</p></div>
+
+<div class="box warn"><span class="k">Trap</span>
+<p><code>np.random.seed(42)</code> is called in the middle of this step, resetting
+the global generator that steps 03 and 04 already used. It makes the scaling
+results reproducible regardless of <code>n_simulations</code>, which is useful,
+but it means the pipeline has two seeds in two places and the second one silently
+overrides the first for anything that runs after it.</p></div>
+
+<div class="box flag"><span class="k">The weakness, stated honestly</span>
+<p><code>correlated_standard_normals</code> builds a full $n \times n$ matrix and
+factorises it for every portfolio size. At $n = 100$ that is a 100 by 100
+Cholesky decomposition repeated for no reason, and the draw matrix is
+$200{,}000 \times 100$ doubles, about 160 megabytes. The equivalent one-factor
+form used in <code>blog/generate_charts.py</code>,
+$\sqrt{\rho}\,F + \sqrt{1-\rho}\,\varepsilon_i$, gives the identical
+distribution with no matrix at all. The step file keeps the matrix version only
+because that is what the original notebook did.</p></div>
+
+<h2 id="model"><span class="sec-no">10</span>The audit layer &mdash; <code>model.py</code></h2>
+
+<p>This is the only part of the package written as reusable, tested, documented
+functions. It answers the two-bond question <b>exactly</b>, with no random
+numbers anywhere, so that the simulation results can be checked rather than
+trusted.</p>
+
+<h3><code>marginal_loss_moments</code> &mdash; one bond's loss, mean, and spread</h3>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> the probability vector, the value vector, and the starting
+price. <b>Output:</b> the eight state losses, the mean loss, the standard
+deviation. <b>Role:</b> the foundation for everything else in the module, and
+the thing the first test hand-checks.</p></div>
+
+<h3><code>validate_rating_inputs</code> &mdash; refuse bad tables early</h3>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> probabilities and values. <b>Output:</b> nothing, or a
+<code>ValueError</code>. <b>Role:</b> checks both arrays are one-dimensional and
+the same length, that every probability is finite and strictly positive, that
+the probabilities sum to one within $10^{-12}$, and that the values are finite.
+<b>Why it matters:</b> a probability vector that does not sum to one would
+silently produce cut points that do not partition the real line, and every
+downstream number would be quietly wrong instead of loudly broken.</p></div>
+
+<h3><code>latent_rating_edges</code> &mdash; probabilities to cut points</h3>
+
+<pre>def latent_rating_edges(probabilities: NDArray[np.float64]) -&gt; NDArray[np.float64]:
+    placeholder_values = np.zeros_like(probabilities)
+    validate_rating_inputs(probabilities, placeholder_values)
+    interior_edges = norm.ppf(np.cumsum(probabilities)[:-1])
+    return np.concatenate(([-np.inf], interior_edges, [np.inf]))</pre>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> eight probabilities. <b>Output:</b> nine edges, from
+$-\infty$ to $+\infty$. <b>Role:</b> turns the rating table into intervals on
+the latent normal scale, which is what the integration needs.</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io">
+<div><span class="lab">in &mdash; probabilities</span>
+<pre>[0.0002 0.0033 0.0595 0.8693
+ 0.0530 0.0117 0.0012 0.0018]</pre></div>
+<div><span class="lab">out &mdash; edges</span>
+<pre>[     -inf -3.540084 -2.696844 -1.530068
+  1.493142  2.178081  2.747781  2.911238
+       inf]
+                 &lt;- 2.911238 is the default
+                    threshold: 1 - Phi(2.911238)
+                    = 0.0018 = the default probability</pre></div>
+</div>
+<p>The last cumulative probability is dropped by <code>[:-1]</code> before
+<code>norm.ppf</code>, because $\Phi^{-1}(1) = +\infty$ and the infinity is
+appended explicitly instead.</p></div>
+
+<h3><code>bivariate_state_probabilities</code> &mdash; the 8 by 8 joint table, exactly</h3>
+
+<pre>def integrand(first_latent: float) -&gt; float:
+    <span class="c">"""Return the joint density integrated over name 2's interval."""</span>
+    upper_z = (second_upper - latent_correlation * first_latent) / conditional_scale
+    lower_z = (second_lower - latent_correlation * first_latent) / conditional_scale
+    conditional_probability = norm.cdf(upper_z) - norm.cdf(lower_z)
+    return float(norm.pdf(first_latent) * conditional_probability)
+
+joint[first_state, second_state] = quad(
+    integrand, first_lower, first_upper,
+    epsabs=QUADRATURE_ABSOLUTE_TOLERANCE,   <span class="c"># 1e-13</span>
+    epsrel=QUADRATURE_RELATIVE_TOLERANCE,   <span class="c"># 1e-11</span>
+    limit=QUADRATURE_LIMIT,                 <span class="c"># 200</span>
+)[0]</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>For each of the 64 possible rating pairs, work out its probability by
+integration rather than by counting simulated draws. Sweep the first bond's
+hidden variable across its rating band; at each point, the second bond's hidden
+variable is normal around a known centre, so its band probability is a
+subtraction of two lookups.</p></div>
+
+<div class="box def"><span class="k">The formula</span>
+<p>For name 1's interval $(a_i, b_i]$ and name 2's interval $(a_j, b_j]$:</p>
+<p>$$\Pr\!\left(a_i \lt Z_1 \le b_i,\; a_j \lt Z_2 \le b_j\right)
+= \int_{a_i}^{b_i} \phi(z)
+\left[\Phi\!\left(\frac{b_j-\rho z}{\sqrt{1-\rho^2}}\right)
+-\Phi\!\left(\frac{a_j-\rho z}{\sqrt{1-\rho^2}}\right)\right] dz$$</p>
+<p class="fnote">$Z_1, Z_2$ are the two latent standard normal variables;
+$a_i, b_i$ are the lower and upper cut points of name 1's rating band $i$;
+$\rho$ is the latent correlation; $\phi$ is the standard normal density and
+$\Phi$ its cumulative distribution function. The bracket is the standard result
+that conditional on $Z_1 = z$, the second variable is normal with mean $\rho z$
+and variance $1-\rho^2$. Turning a two-dimensional integral into a
+one-dimensional one is what makes this fast and accurate.</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io">
+<div><span class="lab">in &mdash; probabilities, latent_correlation = 0.5</span>
+<pre>8 states -&gt; 64 quadrature calls</pre></div>
+<div><span class="lab">out &mdash; joint matrix facts</span>
+<pre>joint.sum()      = 1.0000000000000002
+joint[3, 3]      = 0.77445601   (both stay BBB)
+joint[7, 7]      = 1.215758e-04 (both default)
+max |row sum - probabilities|
+                 = 2.22e-16     &lt;- marginals preserved
+                                   to machine precision</pre></div>
+</div>
+<p>Sanity check at zero correlation: <code>joint[7, 7]</code> becomes
+$3.24 \times 10^{-6}$, which is exactly $0.0018^2$. At correlation 0.5 the joint
+default probability is 37.5 times larger than independence would give.</p></div>
+
+<div class="box why"><span class="k">Why integrate at all</span>
+<p>Both bonds defaulting has probability 0.000122. To estimate that to within
+ten percent by simulation you need roughly a million paths, and the resulting
+loss correlation still wobbles: the project's own convergence table shows
+0.15998 at ten thousand paths, 0.20019 at a hundred thousand, and 0.20439 at a
+million, against the exact 0.20140. Rare joint events are precisely where
+simulation is weakest and where credit risk lives.</p></div>
+
+<h3><code>weighted_quantile</code> &mdash; VaR on a distribution with only 64 outcomes</h3>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> 64 loss values, their 64 probabilities, and a confidence level.
+<b>Output:</b> one dollar figure. <b>Role:</b> gives the exact tail numbers.
+It sorts the outcomes, merges duplicates with <code>np.unique</code> and
+<code>np.bincount</code> (several rating pairs give the same dollar loss),
+accumulates the probabilities, and returns the first value whose running total
+reaches the level. <b>Why it matters:</b> unlike
+<code>np.percentile</code> it never interpolates, so it can only return a loss
+the portfolio can actually suffer.</p></div>
+
+<h3><code>exact_two_name_metrics</code> &mdash; the full benchmark</h3>
+
+<div class="box def"><span class="k">The formula &mdash; loss and default correlation</span>
+<p>Because the two names are identical, both correlations simplify. Writing
+$\mu$ and $\sigma$ for the one-name loss mean and standard deviation:</p>
+<p>$$\operatorname{Corr}(L_1,L_2)
+= \frac{\mathbb{E}[L_1 L_2] - \mu^2}{\sigma^2},
+\qquad
+\mathbb{E}[L_1 L_2] = \sum_{i=1}^{K}\sum_{j=1}^{K} J_{ij}\,\ell_i\,\ell_j$$</p>
+<p>For the two default indicators $D_i$, which are 1 if name $i$ defaults and 0
+otherwise:</p>
+<p>$$\operatorname{Corr}(D_1,D_2)
+= \frac{\Pr(D_1=1,\,D_2=1) - p_D^{2}}{p_D\,(1-p_D)}$$</p>
+<p class="fnote">$J_{ij}$ is the joint probability of name 1 in state $i$ and
+name 2 in state $j$; $\ell_i$ is the dollar loss in state $i$; $p_D$ is the
+one-name default probability, here 0.0018. The denominator is the variance of a
+Bernoulli variable, $p_D(1-p_D)$, which is the same for both names.</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io stack">
+<div><span class="lab">out &mdash; exact_two_name_metrics(P, V, 107.55, 0.5)</span>
+<pre>mean_loss_dollars                 = 0.9241640    &lt;- exactly 2 x 0.462082
+standard_deviation_dollars        = 4.6375485
+var_95_dollars                    = 5.53
+var_99_dollars                    = 14.98
+var_99_9_dollars                  = 61.95
+pearson_loss_correlation          = 0.20139690
+joint_default_probability         = 0.000121576
+conditional_default_probability   = 0.06754213   &lt;- if one defaults, the other
+default_indicator_correlation     = 0.06586068      does so 6.75% of the time,
+default_threshold                 = 2.91123773      versus 0.18% unconditionally</pre></div>
+</div>
+<p>The exact 99 percent and 99.9 percent numbers, 14.98 and 61.95, are the same
+values the one-million-path simulation produced. That is the point of the module:
+the discrete quantiles are pinned down, so the comparison against Method A is not
+an artefact of sampling.</p></div>
+
+<div class="box why"><span class="k">Why the conditional default probability is the headline</span>
+<p>0.0658 sounds like almost no correlation, and a risk report quoting it would
+look reassuring. The same model says that <b>given</b> one name has defaulted,
+the chance the second one also defaults is 6.75 percent rather than 0.18 percent
+&mdash; a factor of 37.5. Linear correlation is a poor summary of tail
+dependence, and this project exists partly to show that on real numbers.</p></div>
+
+<h2 id="tests"><span class="sec-no">11</span>The tests &mdash; <code>tests/test_model.py</code></h2>
+
+<p>Seven tests, all deterministic, all of them checking a property rather than
+a stored output. Run with <code>uv run pytest -q</code>; they take under two
+seconds.</p>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Test</th><th>What it pins down</th></tr></thead>
+<tbody>
+<tr><td><code>test_marginal_moments_match_manual_weighted_calculation</code></td><td>Losses and moments against arithmetic anyone can redo: &minus;1.82, 56.42, mean 0.462082, standard deviation 2.99178.</td></tr>
+<tr><td><code>test_zero_latent_correlation_produces_independent_states</code></td><td>At $\rho = 0$ every joint cell equals the outer product of the marginals, to $10^{-12}$. This is the strongest single check that the quadrature is correct.</td></tr>
+<tr><td><code>test_positive_latent_correlation_preserves_marginals</code></td><td>At $\rho = 0.5$ both row and column sums still equal the rating probabilities. This is the defining property of a copula.</td></tr>
+<tr><td><code>test_default_uses_the_upper_tail_with_the_expected_probability</code></td><td>The final cut point equals $\Phi^{-1}(1-p_D)$, catching a sign flip that would put default in the wrong tail.</td></tr>
+<tr><td><code>test_exact_two_name_metrics_match_attainable_loss_levels</code></td><td>The published tail numbers, to eight decimal places.</td></tr>
+<tr><td><code>test_independent_defaults_have_zero_indicator_correlation</code></td><td>At $\rho = 0$, conditional default probability equals the unconditional one.</td></tr>
+<tr><td><code>test_matched_gaussian_portfolio_variance_scales_with_equicorrelation</code></td><td>The multiplier $n + \rho n(n-1) = 3$ at $n = 2$, $\rho = 0.5$, catching the classic error of counting each covariance pair once instead of twice.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="box flag"><span class="k">The weakness, stated honestly</span>
+<p>Every test targets <code>model.py</code>. The nine step scripts &mdash; which
+are what the command actually runs and what produces the figures &mdash; have no
+tests at all, and cannot easily have any, because they are not importable. That
+is exactly why the missing-import defect described in section 14 could sit in the
+working tree with a green test suite.</p></div>
+
+<h2 id="blog"><span class="sec-no">12</span>The frozen evidence &mdash; <code>blog/generate_charts.py</code></h2>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>A second, standalone version of the same experiment whose job is to write
+every published number into CSV files, so a reader can check the article without
+rerunning a million simulations.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> its own copies of the constants at the top of the file; it
+imports only <code>exact_two_name_metrics</code> from the package.
+<b>Output:</b> five CSV files under <code>blog/data/</code> and two PNG files
+under <code>blog/images/</code>. <b>Role:</b> the reproducibility record for the
+bilingual article. Run it with
+<code>MPLBACKEND=Agg uv run python blog/generate_charts.py</code>.</p></div>
+
+<div class="box why"><span class="k">Three things it does better than the step scripts</span>
+<p><b>One.</b> It uses <code>np.random.default_rng(seed)</code>, a local
+generator, instead of the global <code>np.random.seed</code>, so nothing it does
+can disturb anything else.<br>
+<b>Two.</b> It computes Method A's portfolio VaR from the closed form,
+$n\mu + z_\alpha \sigma \sqrt{n + \rho n(n-1)}$ where $z_\alpha =
+\Phi^{-1}(\alpha)$, instead of simulating it. A Gaussian portfolio has an exact
+quantile, so simulating it only adds noise.<br>
+<b>Three.</b> It generates the latent variables in the one-factor form
+$\sqrt{\rho}\,F + \sqrt{1-\rho}\,\varepsilon_i$, where $F$ is a single common
+normal shock shared by all names and $\varepsilon_i$ is name $i$'s own
+independent shock. That reproduces constant pairwise correlation $\rho$ with no
+matrix factorisation, and it is processed in chunks of 20,000 rows to bound
+memory.</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io stack">
+<div><span class="lab">out &mdash; blog/data/copula_convergence.csv, as committed</span>
+<pre>simulations,mean_loss_dollars,standard_deviation_dollars,var_99_dollars,var_99_9_dollars,pearson_loss_correlation
+10000,0.94035800,4.67454299,14.98000000,61.95000000,0.15998235
+100000,0.92154400,4.66619939,14.98000000,61.95000000,0.20019420
+1000000,0.92259515,4.63477649,14.98000000,61.95000000,0.20439270</pre></div>
+</div>
+<p>This one table is the project's best argument. The two VaR columns are already
+correct at ten thousand paths, because a discrete distribution's quantiles snap
+to attainable rungs. The correlation column is still 1.5 percent off the exact
+0.20140 after a million paths, because it depends on rare joint moves. Different
+statistics from the same simulation converge at wildly different speeds.</p></div>
+
+<div class="box warn"><span class="k">Trap</span>
+<p>The rating table, the correlation, and the simulation counts are declared
+independently at the top of this file. Nothing links them to
+<code>src/credit_copula/steps/02_data_setup.py</code>. Changing one and not the
+other produces an article whose text and figures disagree, with no error message.</p></div>
+
+<h2 id="settings"><span class="sec-no">13</span>Settings, and what changing each one does</h2>
+
+<p>There is no <code>config.toml</code> in this project. Every tunable value is
+a named constant near the top of the file that uses it. Here is the complete
+list that matters.</p>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Setting</th><th>Where</th><th>Default</th><th>What changing it does</th></tr></thead>
+<tbody>
+<tr><td><code>n_simulations</code></td><td>step 03, via <code>OVERRIDES</code></td><td>1,000,000</td><td>The only setting the CLI can override. Fewer paths make the 99.9 percent numbers noisy for Method A; Method B's quantiles barely move.</td></tr>
+<tr><td><code>correlation</code></td><td>step 03</td><td>0.5</td><td>The latent asset correlation. Raising it widens both tails and raises joint defaults sharply; it is not the loss correlation you will see reported.</td></tr>
+<tr><td><code>probabilities</code>, <code>values</code></td><td>step 02</td><td>BBB one-year row</td><td>The whole input dataset. Must still sum to one; must be duplicated in <code>blog/generate_charts.py</code> and <code>tests/test_model.py</code>.</td></tr>
+<tr><td><code>BBB_RATING_INDEX</code></td><td>step 02</td><td>3</td><td>Which state the bond starts in, and therefore where loss equals zero.</td></tr>
+<tr><td><code>SMOKE_OVERRIDES</code></td><td><code>cli.py</code></td><td>50,000 paths</td><td>What <code>--smoke</code> injects. Does not reach step 09.</td></tr>
+<tr><td><code>SCALING_SIMULATIONS</code></td><td>step 09</td><td>200,000</td><td>Paths per portfolio size. Dominates total runtime and cannot be overridden.</td></tr>
+<tr><td><code>BOND_COUNTS</code></td><td>step 09</td><td>1 to 100, 11 sizes</td><td>The x-axis of the scaling figure. Cost grows roughly with the sum of the counts.</td></tr>
+<tr><td><code>VAR_PERCENTILE</code></td><td>step 09</td><td>99</td><td>Which quantile the scaling figure tracks. At 95 the copula curve would sit below the Gaussian one.</td></tr>
+<tr><td>Quadrature tolerances</td><td><code>model.py</code></td><td>1e-13 absolute, 1e-11 relative, 200 subdivisions</td><td>How hard <code>scipy.integrate.quad</code> works per cell. Loosening them breaks the $10^{-12}$ assertions in the tests.</td></tr>
+<tr><td><code>PROBABILITY_TOLERANCE</code></td><td><code>model.py</code></td><td>1e-12</td><td>How far the probabilities may drift from summing to one before validation refuses them.</td></tr>
+<tr><td><code>CHUNK_SIZE</code></td><td><code>blog/generate_charts.py</code></td><td>20,000</td><td>Memory ceiling for the scaling sweep. Does not change any result.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="box flag"><span class="k">The weakness, stated honestly</span>
+<p>Only one of these eleven settings can be changed without editing source code.
+For a project this size that is defensible, but the rating table living in three
+separate files is a genuine maintenance hazard, and moving it &mdash; along with
+the correlation and the path counts &mdash; into a single
+<code>config.toml</code> read by all three consumers would be the highest-value
+change anyone could make here.</p></div>
+
+<h2 id="fixes"><span class="sec-no">14</span>Fixes applied</h2>
+
+<p>Two defects were found while reading, both confirmed by running the code, both
+fixed.</p>
+
+<h3>Fix 1 &mdash; the pipeline could not run at all</h3>
+
+<div class="box def"><span class="k">Symptom</span>
+<p><code>uv run credit-copula --smoke</code> stopped on the second step file:</p>
+<pre>File ".../steps/02_data_setup.py", line 11, in &lt;module&gt;
+    rating_data = pd.DataFrame(
+                  ^^
+NameError: name 'pd' is not defined</pre></div>
+
+<div class="box def"><span class="k">Cause and fix</span>
+<p>An automatic "remove unused imports" cleanup had been run over the step
+files. In <code>01_..._dependence_structures.py</code> the names
+<code>pandas as pd</code>, <code>scipy.stats</code> and
+<code>scipy.stats.norm</code> genuinely are unused <b>within that file</b>, so
+the tool deleted them. But the whole pipeline runs in one shared namespace, and
+steps 02, 04, 05, 06 and 09 read exactly those names. A linter cannot see that.
+The three imports were restored, each carrying a <code># noqa: F401</code>
+marker naming the steps that consume it, plus a comment at the top of the file
+explaining why they must stay.</p></div>
+
+<h3>Fix 2 &mdash; a statistic labelled with the wrong definition</h3>
+
+<div class="box def"><span class="k">Symptom</span>
+<p>The summary table in <code>06_statistical_summary.py</code> had a row called
+<b>Kurtosis</b> whose values came from <code>stats.kurtosis(...)</code>. SciPy
+defaults to <code>fisher=True</code>, which subtracts 3 and therefore returns
+<b>excess</b> kurtosis: a normal distribution scores 0, not 3. The printed
+Method A value of 0.005166 is only sensible under that reading.</p></div>
+
+<div class="box def"><span class="k">Fix</span>
+<p>The label became <code>"Excess Kurtosis"</code>, with a comment stating the
+SciPy default. This also brings the step table into line with
+<code>blog/data/two_bond_metrics.csv</code>, which already used the column name
+<code>excess_kurtosis</code>. No computed value changed.</p></div>
+
+<div class="box warn"><span class="k">Not a repository change, but worth recording</span>
+<p>The project virtual environment was broken on this machine: several packages
+had been partly overwritten, so <code>import numpy</code> failed with
+"Something is wrong with the numpy installation" and
+<code>import pyparsing</code> failed with a circular-import error.
+<code>uv sync</code> reported nothing to do because its lock file was satisfied.
+<code>uv sync --reinstall</code> repaired it. That touched only the git-ignored
+<code>.venv/</code> folder, no tracked file.</p></div>
+
+<div class="box flag"><span class="k">Considered and deliberately not changed</span>
+<p>Three further things look wrong but are judgement calls, not defects, so they
+were left alone and documented instead: <code>--smoke</code> not reaching step 09;
+the rating table being duplicated across three files; and steps 03 and 04 using
+different random draws for the two methods. Changing any of these alters
+published numbers or project structure, which is the owner's call.</p></div>
+
+<h2 id="callgraph"><span class="sec-no">15</span>Call graph</h2>
+
+<pre>credit-copula                          <span class="c"># console script from pyproject.toml</span>
+scripts/run_pipeline.py
+notebooks/demo.ipynb
+  └─ cli.main()
+       └─ pipeline.run_pipeline(context_overrides)
+            ├─ config.ProjectConfig()                 <span class="c"># project_root = parents[2]</span>
+            ├─ config.build_execution_context()       <span class="c"># mkdir outputs, seed the namespace</span>
+            └─ exec() over sorted(steps/*.py)
+                 ├─ 01  imports, np.random.seed(111111), plot style
+                 ├─ 02  ratings, probabilities, values, cumulative_probs
+                 ├─ 03  Method A -&gt; losses_mvn, credit_losses_mvn, L
+                 ├─ 04  Method B -&gt; losses_copula, credit_losses_copula
+                 ├─ 05  results_df            <span class="c"># reads 03 + 04</span>
+                 ├─ 06  stats_summary         <span class="c"># reads 03 + 04 + 05</span>
+                 ├─ 07  figure 001            <span class="c"># defines figures_dir</span>
+                 ├─ 08  figures 003, 004, 005 <span class="c"># needs figures_dir from 07</span>
+                 └─ 09  figure 006            <span class="c"># np.random.seed(42), own 200k paths</span>
+
+<span class="c"># the audit layer, entirely separate from the pipeline above</span>
+model.exact_two_name_metrics()
+  ├─ model.marginal_loss_moments()
+  │    └─ model.validate_rating_inputs()
+  ├─ model.bivariate_state_probabilities()
+  │    ├─ model.latent_rating_edges()  ──&gt; validate_rating_inputs()
+  │    └─ scipy.integrate.quad()       <span class="c"># 64 times, one per rating pair</span>
+  └─ model.weighted_quantile()         <span class="c"># 3 times: 95%, 99%, 99.9%</span>
+
+  called by: tests/test_model.py  and  blog/generate_charts.py</pre>
+
+<h2 id="edge"><span class="sec-no">16</span>Edge cases</h2>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Situation</th><th>What would go wrong</th><th>What handles it</th></tr></thead>
+<tbody>
+<tr><td>Probabilities do not sum to one</td><td>Cut points would not partition the line; every result silently wrong</td><td><code>validate_rating_inputs</code> raises, within $10^{-12}$. <b>Only in <code>model.py</code></b> &mdash; the step scripts never check.</td></tr>
+<tr><td>A rating with probability exactly zero</td><td>Two identical cut points; a zero-width interval</td><td>Rejected: probabilities must be strictly positive.</td></tr>
+<tr><td>Correlation of exactly 1 or &minus;1</td><td>Division by $\sqrt{1-\rho^2} = 0$ in the integrand</td><td>Rejected: <code>latent_correlation</code> must lie strictly inside $(-1,1)$.</td></tr>
+<tr><td>A uniform draw at or above the last cumulative probability</td><td><code>searchsorted</code> returns index 8 into an 8-element array, raising <code>IndexError</code></td><td><span class="failw">Unguarded.</span> Safe here only because <code>cumsum</code> rounds up to 1.0000000000000002. A different rating table could round the other way.</td></tr>
+<tr><td>Requesting a confidence level above the accumulated probability</td><td><code>weighted_quantile</code> indexes past the end</td><td><span class="failw">Unguarded.</span> The level is checked to be inside $(0,1)$, but not against the cumulative sum, which can fall a few $10^{-16}$ below 1.</td></tr>
+<tr><td>The tail histogram in step 07 catches no copula observations</td><td><code>tail_copula.max()</code> on an empty array raises</td><td><span class="failw">Unguarded.</span> Does not happen with this rating table, because Method A's 90th percentile is well below the copula's upper rungs.</td></tr>
+<tr><td>Running steps 08 or 09 without step 07</td><td><code>NameError: figures_dir</code></td><td>Not possible through the CLI, which always runs all nine in order.</td></tr>
+<tr><td>An extra <code>.py</code> file left in <code>steps/</code></td><td>It is executed as part of the pipeline</td><td><span class="failw">Unguarded.</span> The glob takes everything.</td></tr>
+<tr><td>Fresh clone with no <code>outputs/</code> folder</td><td>Figure saving would fail</td><td><code>build_execution_context</code> creates all three output folders first.</td></tr>
+<tr><td>Command run from a different working directory</td><td>Figures written to the wrong place</td><td>All paths derive from <code>Path(__file__).resolve().parents[2]</code>.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="traps"><span class="sec-no">17</span>Traps and idioms</h2>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Idiom</th><th>What it does</th><th>The trap</th></tr></thead>
+<tbody>
+<tr><td><code>exec(compile(src, path, "exec"), context)</code></td><td>Runs a file with a supplied dictionary as its globals</td><td>Names leak between files in both directions. Nothing is importable or unit-testable, and a linter reading one file cannot see who uses what &mdash; the cause of Fix 1.</td></tr>
+<tr><td><code>np.searchsorted(cum, u, side="right")</code></td><td>Inverse-transform sampling: turns a uniform into a discrete index</td><td>Returns <code>len(cum)</code> when the value exceeds everything, giving a silent out-of-bounds index.</td></tr>
+<tr><td><code>z @ L.T</code> after <code>np.linalg.cholesky</code></td><td>Imposes a target correlation on independent normals</td><td>The transpose is required. <code>z @ L</code> runs without error and produces the wrong correlation.</td></tr>
+<tr><td><code>np.random.seed(...)</code></td><td>Sets the global legacy generator</td><td>Global state. Step 09 resets it mid-run. Prefer <code>np.random.default_rng()</code>, as step 05 and the blog script do.</td></tr>
+<tr><td><code>stats.kurtosis(x)</code></td><td>Excess kurtosis, not raw kurtosis</td><td>Normal scores 0, not 3. Mislabelling it was Fix 2.</td></tr>
+<tr><td><code>np.percentile(x, 99.9)</code></td><td>Interpolates between order statistics</td><td>On a discrete loss distribution it can return a dollar figure the portfolio cannot actually lose. <code>weighted_quantile</code> exists to avoid this.</td></tr>
+<tr><td><code>np.std(x)</code></td><td>Population standard deviation, <code>ddof=0</code></td><td>Differs from <code>pandas.Series.std()</code>, which defaults to <code>ddof=1</code>. Immaterial at a million paths, not at ten.</td></tr>
+<tr><td><code>quad(f, -inf, edge)</code></td><td>Adaptive quadrature over an unbounded interval</td><td>Works, but silently returns the best it managed if it fails to converge; only the value, not the error estimate, is kept (<code>[0]</code>).</td></tr>
+<tr><td><code>plt.show()</code> under <code>MPLBACKEND=Agg</code></td><td>Nothing</td><td>Figures are never closed, so they accumulate in memory.</td></tr>
+<tr><td><code>zip(edges[:-1], edges[1:], strict=True)</code></td><td>Walks consecutive pairs</td><td><code>strict=True</code> is the good habit here: it would raise rather than silently truncate if the two slices ever differed in length.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="questions"><span class="sec-no">18</span>If someone points at a line</h2>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Question</th><th>Answer</th></tr></thead>
+<tbody>
+<tr><td>"Is there look-ahead bias anywhere?"</td><td>No, and there cannot be: nothing in this project is a time series. It is a single one-year horizon with a fixed transition table, so there is no past and future to confuse. The comparable risk is <b>reusing information across methods</b>, and the code avoids that by drawing fresh random numbers for Method B.</td></tr>
+<tr><td>"Why does the copula show a lower 95 percent VaR but a much higher 99.9 percent VaR?"</td><td>Because 77.4 percent of the time both bonds simply stay BBB and lose nothing. That mass has to go somewhere, and it goes into rare large jumps. The Gaussian approximation spreads the same variance evenly and so has neither the calm centre nor the violent tail.</td></tr>
+<tr><td>"Where does 0.5 actually enter?"</td><td>Two places, identically: the correlation matrix in step 03, and the same Cholesky factor <code>L</code> reused in step 04. It applies to the hidden normal variables only.</td></tr>
+<tr><td>"Why is the reported loss correlation 0.20 and not 0.5?"</td><td>Thresholding is a non-linear transformation, and non-linear transformations destroy linear correlation. The exact figure is 0.2013969; the default-indicator correlation is smaller again at 0.0658607.</td></tr>
+<tr><td>"How long does the full run take?"</td><td>18.5 seconds on this machine with <code>MPLBACKEND=Agg</code>. <code>--smoke</code> took 22.3 seconds &mdash; no faster, because step 09 ignores the override.</td></tr>
+<tr><td>"Why 61.95 dollars and not some rounder number?"</td><td>It is $56.42 + 5.53$: one bond defaults and the other falls to BB. Portfolio losses can only be sums of two entries from <code>single_bond_losses</code>.</td></tr>
+<tr><td>"Can I trust the simulated tail, or is it noise?"</td><td>You do not have to trust it. <code>model.py</code> computes the same quantiles by integration with no random numbers, and gets 14.98 and 61.95 &mdash; identical.</td></tr>
+<tr><td>"What breaks if I change the rating table?"</td><td>Three files must change together: <code>steps/02_data_setup.py</code>, <code>blog/generate_charts.py</code>, and <code>tests/test_model.py</code>. Five test assertions carry hard-coded expected values and will fail loudly, which is the safety net.</td></tr>
+<tr><td>"Why keep the notebook and the step scripts?"</td><td><code>docs/reference/credit-copula.ipynb</code> is the untouched original, kept so the split can be audited line by line. It is documentation, not code that runs.</td></tr>
+<tr><td>"Which parts would you reuse in another project?"</td><td>Only <code>model.py</code>. It is validated, documented, tested, and has no dependency on the pipeline. The step scripts are a preserved artefact.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="verify"><span class="sec-no">19</span>How the project checks itself</h2>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Check</th><th>How it works</th><th>What it catches</th></tr></thead>
+<tbody>
+<tr><td>Independence at zero correlation</td><td>Joint matrix must equal the outer product of the marginals to $10^{-12}$</td><td>Almost any error in the integration limits, the conditional mean, or the conditional variance</td></tr>
+<tr><td>Marginals preserved at $\rho = 0.5$</td><td>Row and column sums must return the rating probabilities</td><td>Wrong cut points; a copula that has quietly changed each bond's own distribution</td></tr>
+<tr><td>Joint matrix sums to one</td><td><code>joint.sum()</code> compared to 1.0</td><td>Missing or double-counted cells</td></tr>
+<tr><td>Default threshold direction</td><td>Last cut point compared to $\Phi^{-1}(1-p_D)$</td><td>A sign convention flip putting default in the lower tail</td></tr>
+<tr><td>Variance multiplier</td><td>$n + \rho n(n-1)$ must equal 3 at $n = 2$, $\rho = 0.5$</td><td>Counting each covariance pair once instead of twice, the classic portfolio-variance error</td></tr>
+<tr><td>Hand-checkable moments</td><td>Mean 0.462082 and standard deviation 2.99178 asserted directly</td><td>Any change to the rating table slipping through unnoticed</td></tr>
+<tr><td>Exact against simulated</td><td>Compare 14.98 and 61.95 from integration with the same values from a million paths</td><td>The distinction between a genuine model result and a sampling artefact</td></tr>
+<tr><td>Convergence table</td><td><code>blog/data/copula_convergence.csv</code> at 10k, 100k, 1M paths</td><td>Which statistics have settled and which have not &mdash; here, quantiles have, correlation has not</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="limits"><span class="sec-no">20</span>Limitations, stated honestly</h2>
+
+<ul>
+<li><b>The rating table is not sourced.</b> The eight probabilities and eight
+prices are literals with no citation in the repository. They match the shape of
+a standard published one-year BBB transition row, but nothing in the code says
+which table, which year, or which agency.</li>
+<li><b>The exact benchmark covers two names only.</b>
+<code>bivariate_state_probabilities</code> is a double loop over rating pairs.
+There is no exact answer for the 100-bond portfolio; that curve is simulated and
+carries sampling error, visible as the non-monotone per-bond figures.</li>
+<li><b>Correlation is a single number.</b> One constant pairwise correlation of
+0.5 across all names, all ratings, and the whole year. Real credit correlation
+varies by sector, by rating, and rises in stress.</li>
+<li><b>The Gaussian copula has no tail dependence.</b> That is a known property
+of the model, not of this implementation: as you go further into the joint tail,
+a Gaussian copula's dependence fades towards independence. The project shows the
+Gaussian copula is far more dangerous than a matched normal, but a Student-t
+copula would be more dangerous again, and that comparison is absent.</li>
+<li><b>No recovery uncertainty.</b> Default is worth exactly 51.13 dollars every
+time. In practice recovery is itself random and tends to be worse in the same
+years when defaults cluster, which would widen the tail further.</li>
+<li><b>No spread or interest-rate risk.</b> The eight end-of-year prices are
+fixed, so this measures migration and default risk only.</li>
+<li><b>The nine step scripts are untested.</b> Everything under
+<code>steps/</code> is verified only by the fact that it runs and prints
+plausible numbers.</li>
+<li><b>The experiment exists twice.</b> The step scripts and
+<code>blog/generate_charts.py</code> implement the same study with different
+random number generators and separate copies of the constants. They agree today;
+nothing enforces that they keep agreeing.</li>
+</ul>
+
+<p class="foot">Every number on this page was produced by running the project on
+this machine: <code>uv sync --reinstall</code>, then
+<code>MPLBACKEND=Agg uv run credit-copula</code> at the default one million
+paths, <code>uv run pytest -q</code> (7 passed), and a short script calling
+<code>model.exact_two_name_metrics</code> directly. Committed CSV files under
+<code>blog/data/</code> are quoted as committed. Nothing here is estimated.</p>
+
+</div>
+</body>
+</html>
