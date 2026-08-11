@@ -4,15 +4,13 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from scipy.stats import norm
-
 from credit_copula.model import (
     bivariate_state_probabilities,
     exact_two_name_metrics,
     latent_rating_edges,
     marginal_loss_moments,
 )
-
+from scipy.stats import norm
 
 PROBABILITIES = np.array([0.02, 0.33, 5.95, 86.93, 5.30, 1.17, 0.12, 0.18]) / 100
 STATE_VALUES = np.array([109.37, 109.19, 108.66, 107.55, 102.02, 98.10, 83.64, 51.13])

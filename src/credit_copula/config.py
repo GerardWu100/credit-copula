@@ -12,31 +12,33 @@ class ProjectConfig:
     """Filesystem locations used by the generated pipeline."""
 
     # Repo root is two levels above this package (src/credit_copula/).
-    project_root: Path = field(default_factory=lambda: Path(__file__).resolve().parents[2])
+    project_root: Path = field(
+        default_factory=lambda: Path(__file__).resolve().parents[2]
+    )
 
     @property
     def data_dir(self) -> Path:
-        return self.project_root / 'data'
+        return self.project_root / "data"
 
     @property
     def processed_data_dir(self) -> Path:
-        return self.data_dir / 'processed'
+        return self.data_dir / "processed"
 
     @property
     def outputs_dir(self) -> Path:
-        return self.project_root / 'outputs'
+        return self.project_root / "outputs"
 
     @property
     def figures_dir(self) -> Path:
-        return self.outputs_dir / 'figures'
+        return self.outputs_dir / "figures"
 
     @property
     def tables_dir(self) -> Path:
-        return self.outputs_dir / 'tables'
+        return self.outputs_dir / "tables"
 
     @property
     def steps_dir(self) -> Path:
-        return Path(__file__).resolve().parent / 'steps'
+        return Path(__file__).resolve().parent / "steps"
 
 
 def build_execution_context(
@@ -57,15 +59,15 @@ def build_execution_context(
     overrides = dict(context_overrides or {})
 
     context: dict[str, Any] = {
-        '__name__': '__main__',
-        'PROJECT_ROOT': config.project_root,
-        'DATA_DIR': config.data_dir,
-        'PROCESSED_DATA_DIR': config.processed_data_dir,
-        'OUTPUTS_DIR': config.outputs_dir,
-        'FIGURES_DIR': config.figures_dir,
-        'TABLES_DIR': config.tables_dir,
-        'OVERRIDES': overrides,
-        'SMOKE_TEST_MODE': bool(overrides.get('SMOKE_TEST_MODE', False)),
+        "__name__": "__main__",
+        "PROJECT_ROOT": config.project_root,
+        "DATA_DIR": config.data_dir,
+        "PROCESSED_DATA_DIR": config.processed_data_dir,
+        "OUTPUTS_DIR": config.outputs_dir,
+        "FIGURES_DIR": config.figures_dir,
+        "TABLES_DIR": config.tables_dir,
+        "OVERRIDES": overrides,
+        "SMOKE_TEST_MODE": bool(overrides.get("SMOKE_TEST_MODE", False)),
     }
     # CLI flags (e.g. ``n_simulations``) land in the same namespace as step code.
     context.update(overrides)

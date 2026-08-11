@@ -14,7 +14,6 @@ from numpy.typing import NDArray
 from scipy.integrate import quad
 from scipy.stats import norm
 
-
 PROBABILITY_TOLERANCE = 1e-12
 QUADRATURE_ABSOLUTE_TOLERANCE = 1e-13
 QUADRATURE_RELATIVE_TOLERANCE = 1e-11

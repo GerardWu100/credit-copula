@@ -13,11 +13,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from credit_copula.model import exact_two_name_metrics
 from scipy import stats
 from scipy.stats import norm
-
-from credit_copula.model import exact_two_name_metrics
-
 
 BLOG_DIR = Path(__file__).resolve().parent
 DATA_DIR = BLOG_DIR / "data"
