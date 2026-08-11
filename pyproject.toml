@@ -7,7 +7,7 @@ name = "credit-copula"
 version = "0.1.0"
 description = "Splits the original credit copula notebook into sequential Python step scripts while preserving the original simulation logic and figures."
 readme = "README.md"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.13"
 dependencies = [
     "numpy>=2.2",
     "pandas>=2.2",
