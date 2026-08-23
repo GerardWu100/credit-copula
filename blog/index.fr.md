@@ -6,11 +6,11 @@ image: images/cover-credit-copula.png
 categories: ["Risk Management", "Quantitative Research"]
 ---
 
-Un modèle de portefeuille peut estimer correctement la perte attendue tout en décrivant un monde qui n'existe pas. Les migrations de crédit rendent ce défaut particulièrement visible. Sur un an, la plupart des obligations ne connaissent aucun bouleversement. Quelques-unes sont dégradées et une fraction infime fait défaut. Remplacer ces résultats par une loi normale lisse conserve deux moments, mais efface les paliers entre les états.
+Un modèle de portefeuille peut estimer correctement la perte attendue tout en décrivant des pertes impossibles. Les migrations de crédit rendent ce défaut particulièrement visible. Sur un an, la plupart des obligations gardent leur notation. Quelques-unes sont dégradées et une fraction infime fait défaut. Remplacer ces résultats par une loi normale lisse conserve deux moments, mais efface les paliers entre les états.
 
 J'ai étudié ce compromis sur un portefeuille volontairement réduit : deux obligations BBB identiques, valorisées chacune à \$107.55 aujourd'hui, avec une matrice de transition à un an. Le paramètre de dépendance commun est une corrélation latente des actifs de 0.5. Il ne s'agit ni de la corrélation observée des défauts ni de celle des pertes. Je compare une approximation gaussienne appliquée directement aux pertes à une copule gaussienne appliquée avant le passage de chaque obligation vers un état de notation discret.
 
-Le résultat est plus précis qu'une condamnation générale des modèles normaux. Les deux méthodes estiment la perte attendue du portefeuille à environ \$0.92, mais donnent respectivement \$16.88 et \$61.95 pour la Value-at-Risk (VaR) à 99.9%. La Value-at-Risk au niveau de confiance $q$ est le plus petit seuil de perte dont la probabilité de dépassement ne dépasse pas $1-q$. L'écart vient de la loi marginale des pertes, et non d'une prétendue dépendance à queues épaisses de la copule gaussienne.
+Il ne s'agit pas d'une condamnation générale des modèles normaux. Les deux méthodes estiment la perte attendue du portefeuille à environ \$0.92, mais donnent respectivement \$16.88 et \$61.95 pour la Value-at-Risk, ou VaR, à 99.9%. La Value-at-Risk au niveau de confiance $q$ est le plus petit seuil de perte dont la probabilité de dépassement ne dépasse pas $1-q$. L'écart vient de la loi marginale des pertes, et non d'une prétendue dépendance à queues épaisses de la copule gaussienne.
 
 ## La table de migration définit la loi marginale
 
@@ -75,9 +75,9 @@ $$
 =\rho, \qquad i\ne j.
 $$
 
-C'est le modèle homogène d'actifs à un facteur utilisé pour l'expérience sur la taille du portefeuille. Le mot « actif » désigne ici la variable de qualité de crédit non observée $Z_i$, pas le rendement en dollars de l'obligation.
+C'est le modèle homogène d'actifs à un facteur utilisé pour l'expérience sur la taille du portefeuille. Le mot "actif" désigne ici la variable de qualité de crédit non observée $Z_i$, pas le rendement en dollars de l'obligation.
 
-### Méthode A : lisser la perte elle-même
+### La méthode A lisse la perte elle-même
 
 L'approximation gaussienne par moments transforme directement chaque valeur latente $Z_i$ de l'obligation $i$ en une perte continue $\widetilde{\ell}_i$ :
 
@@ -97,7 +97,7 @@ losses_mvn = mean_loss_single + np.sqrt(var_loss_single) * z_correlated
 credit_losses_mvn = losses_mvn.sum(axis=1)
 ```
 
-### Méthode B : conserver les paliers de notation
+### La méthode B conserve les paliers de notation
 
 La copule gaussienne utilise le même type de variable latente $Z_i$, sans l'assimiler à une perte. Soit $\Phi$ la fonction de répartition de la loi normale standard. La transformation
 
@@ -238,7 +238,7 @@ Cette comparaison contrôlée reste très loin d'un modèle de portefeuille de c
 
 L'hypothèse de dépendance est elle aussi étroite. Un seul paramètre d'équicorrélation impose la même relation latente à toutes les paires. Une copule gaussienne ne peut pas produire de dépendance asymptotique de queue non nulle, sauf en cas de corrélation parfaite. Une copule de Student $t$ pourrait ajouter cette dépendance, mais elle répondrait à une autre question et introduirait un paramètre de degrés de liberté à étayer par des données. La corrélation d'actifs de 0.5 est ici illustrative, pas calibrée. Un modèle de production devrait l'estimer par notation, secteur, région et horizon, puis tester sa sensibilité à l'erreur d'estimation et aux dépendances de crise.
 
-La conclusion utile tient malgré ces limites. Conserver la moyenne et la variance marginales ne suffit pas lorsque les pertes proviennent de changements d'état rares et discrets. Avant de retenir une approximation lisse, il faut examiner les quantiles de part et d'autre du niveau de confiance ciblé, vérifier comment la dépendance latente se traduit en dépendance observée des pertes et garder à l'esprit le support économique de leur distribution.
+Je ne choisirais pas ici une approximation lisse sur la seule base de ses moments ajustés. Les pertes proviennent de changements d'état rares et discrets. Il faut examiner les quantiles de part et d'autre du niveau de confiance ciblé et vérifier comment la dépendance latente devient une dépendance observée des pertes. L'approximation doit aussi respecter les pertes qui peuvent se produire.
 
 ## Reproduire les figures
 

@@ -6,11 +6,11 @@ image: images/cover-credit-copula.png
 categories: ["Risk Management", "Quantitative Research"]
 ---
 
-A portfolio model can get expected loss right and still describe the wrong world. Credit migration makes that failure easy to see. Most bonds do nothing dramatic over one year. A few are downgraded, and a very small fraction default. Replacing those outcomes with a smooth normal distribution preserves two moments, but it erases the steps between them.
+A portfolio model can get expected loss right and still describe losses that cannot occur. Credit migration makes that failure easy to see. Most bonds stay put over one year. A few are downgraded, and a very small fraction default. Replacing those outcomes with a smooth normal distribution preserves two moments, but erases the steps between them.
 
 I tested that trade-off on a deliberately small portfolio: two identical BBB bonds, each worth \$107.55 today, with a one-year rating transition table. The common dependence parameter is a latent asset correlation of 0.5. It is not the observed correlation of defaults or losses. The comparison is between a Gaussian approximation applied directly to losses and a Gaussian copula applied before mapping each bond into a discrete rating state.
 
-The result is narrower than a blanket verdict against normal models. Both methods estimate roughly \$0.92 of expected portfolio loss, yet their 99.9% Value-at-Risk (VaR) estimates are \$16.88 and \$61.95. Value-at-Risk at confidence level $q$ is the smallest loss threshold exceeded with probability no greater than $1-q$. The difference comes from the loss marginal, not from a claim that a Gaussian copula has fat-tailed dependence.
+This is not a blanket verdict against normal models. Both methods estimate roughly \$0.92 of expected portfolio loss, yet their 99.9% Value-at-Risk, or VaR, estimates are \$16.88 and \$61.95. Value-at-Risk at confidence level $q$ is the smallest loss threshold exceeded with probability no greater than $1-q$. The difference comes from the loss marginal, not from a claim that a Gaussian copula has fat-tailed dependence.
 
 ## The migration table is the marginal model
 
@@ -75,9 +75,9 @@ $$
 =\rho, \qquad i\ne j.
 $$
 
-This is the homogeneous one-factor asset model used in the portfolio-size experiment. “Asset” refers to the unobserved creditworthiness variable $Z_i$, not the bond's dollar return.
+This is the homogeneous one-factor asset model used in the portfolio-size experiment. "Asset" refers to the unobserved creditworthiness variable $Z_i$, not the bond's dollar return.
 
-### Method A: smooth the loss itself
+### Method A smooths the loss itself
 
 The matched Gaussian approximation turns each latent value $Z_i$ for bond $i$ directly into a continuous loss $\widetilde{\ell}_i$:
 
@@ -97,7 +97,7 @@ losses_mvn = mean_loss_single + np.sqrt(var_loss_single) * z_correlated
 credit_losses_mvn = losses_mvn.sum(axis=1)
 ```
 
-### Method B: keep the rating steps
+### Method B keeps the rating steps
 
 The Gaussian copula uses the same type of latent $Z_i$, but does not treat it as a loss. Let $\Phi$ be the standard normal cumulative distribution function. The transformation
 
@@ -238,7 +238,7 @@ This controlled comparison stops well short of a production credit portfolio mod
 
 The dependence assumption is also narrow. One equicorrelation parameter says every pair shares the same latent relationship. A Gaussian copula cannot produce non-zero asymptotic tail dependence unless correlation is perfect. Replacing it with a Student's $t$ copula could add joint tail dependence, but that would answer a different question and introduce a degrees-of-freedom parameter that needs evidence. The assumed 0.5 asset correlation is illustrative rather than calibrated. Production work would estimate it by rating, sector, region, and horizon, then test sensitivity to estimation error and stressed dependence.
 
-The useful conclusion survives those limits. Matching marginal mean and variance is not enough when loss arrives through rare, discrete state changes. Before choosing a smooth approximation, inspect the quantiles on both sides of the target confidence level, verify how latent dependence maps into observed loss dependence, and keep the economic support of the loss distribution in view.
+I would not choose a smooth approximation here from its matched moments alone. Loss arrives through rare, discrete state changes. The quantiles on both sides of the target confidence level matter, as does the mapping from latent dependence to observed loss dependence. The approximation must also respect the losses that can occur.
 
 ## Reproducing the figures
 
