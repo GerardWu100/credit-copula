@@ -60,7 +60,3 @@ Running the pipeline writes:
 - `outputs/tables/` — generated summary tables.
 
 `blog/generate_charts.py` separately writes frozen evidence tables to `blog/data/` and figures to `blog/images/` for the write-up in `blog/index.md` / `blog/index.fr.md`.
-
-## License
-
-All rights reserved. See [LICENSE](LICENSE).
